@@ -1,0 +1,15 @@
+language: c
+
+compiler:
+  - clang
+  - gcc
+
+script: ./bootstrap.sh && ./configure && make && make check
+
+sudo: false
+
+addons:
+  apt:
+    packages:
+    - libpam0g-dev
+    - libqrencode3
