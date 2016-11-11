@@ -781,14 +781,20 @@ int main(int argc, char *argv[]) {
       addOption(secret, sizeof(secret), buf);
     }
     if (!window_size) {
-      maybeAddOption("By default, tokens are good for 30 seconds. In order "
-                     "to compensate for\npossible time-skew between the "
-                     "client and the server, we allow an extra\ntoken before "
-                     "and after the current time. If you experience problems "
-                     "with\npoor time synchronization, you can increase the "
-                     "window from its default\nsize of +-1min (window size "
-                     "of 3) to about +-4min (window size of\n17 acceptable "
-                     "tokens).\nDo you want to do so?",
+      maybeAddOption("By default, a new token is generated every 30 seconds by"
+                     " the mobile app.\nIn order to compensate for possible"
+                     " time-skew between the client and the server,\nwe allow"
+                     " an extra token before and after the current time. This"
+                     " allows for a\ntime skew of up to 30 seconds between"
+                     " authentication server and client. If you\nexperience"
+                     " problems with poor time synchronization, you can"
+                     " increase the window\nfrom its default size of 3"
+                     " permitted codes (one previous code, the current\ncode,"
+                     " the next code) to 17 permitted codes (the 8 previous"
+                     " codes, the current\ncode, and the 8 next codes)."
+                     " This will permit for a time skew of up to 4 minutes"
+                     "\nbetween client and server."
+                     "\nDo you want to do so?",
                      secret, sizeof(secret), window);
     } else {
       char buf[80];
