@@ -1666,8 +1666,10 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
       updated = 1;
     }
 
-    // If nothing matched, display an error message
-    if (rc != PAM_SUCCESS) {
+    // Display a success or error message
+    if (rc == PAM_SUCCESS) {
+      log_message(LOG_INFO , pamh, "Accepted google_authenticator for %s", username);
+    } else {
       log_message(LOG_ERR, pamh, "Invalid verification code");
     }
   }
