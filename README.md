@@ -119,7 +119,7 @@ DANGEROUS OPTION!
 
 By default, the PAM module requires the secrets file to be readable only by the
 owner of the file (mode 0600 by default). In situations where the module is used
-in a non-default configuration, an administrator may need more leanient file
+in a non-default configuration, an administrator may need more lenient file
 permissions, or a specific setting for their use case.
 
 ### debug
