@@ -91,6 +91,8 @@ static int generateCode(const char *key, unsigned long tm) {
   return truncatedHash;
 }
 
+// return the user name in heap-allocated buffer.
+// Caller frees.
 static const char *getUserName(uid_t uid) {
   struct passwd pwbuf, *pw;
   char *buf;
@@ -122,7 +124,7 @@ static const char *urlEncode(const char *s) {
   const size_t size = 3 * strlen(s) + 1;
   if (size > 10000) {
     // Anything "too big" is too suspect to let through.
-    fprintf(stderr, "Error: Generated URL would be unreasonably big.");
+    fprintf(stderr, "Error: Generated URL would be unreasonably big.\n");
     exit(1);
   }
   char *ret = malloc(size);
@@ -336,6 +338,7 @@ static void displayEnrollInfo(const char *secret, const char *label,
   free(encoderURL);
 }
 
+// ask y/n, and return 0 for no, 1 for yes.
 static int maybe(const char *msg) {
   printf("\n");
   for (;;) {
