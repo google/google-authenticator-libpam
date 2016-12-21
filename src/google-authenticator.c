@@ -124,7 +124,7 @@ static const char *urlEncode(const char *s) {
   const size_t size = 3 * strlen(s) + 1;
   if (size > 10000) {
     // Anything "too big" is too suspect to let through.
-    fprintf(stderr, "Error: Generated URL would be unreasonably big.\n");
+    fprintf(stderr, "Error: Generated URL would be unreasonably large.\n");
     exit(1);
   }
   char *ret = malloc(size);
@@ -230,10 +230,10 @@ static int displayQRCode(const char* url) {
   const char *ptr = (char *)qrcode->data;
   // Output QRCode using ANSI colors. Instead of black on white, we
   // output black on grey, as that works independently of whether the
-  // user runs his terminals in a black on white or white on black color
+  // user runs their terminal in a black on white or white on black color
   // scheme.
   // But this requires that we print a border around the entire QR Code.
-  // Otherwise, readers won't be able to recognize it.
+  // Otherwise readers won't be able to recognize it.
   if (qr_mode != QR_UTF8) {
     for (int i = 0; i < 2; ++i) {
       printf(ANSI_BLACKONGREY);
@@ -322,15 +322,15 @@ static void displayEnrollInfo(const char *secret, const char *label,
   const char *url = getURL(secret, label, &encoderURL, use_totp, issuer);
   printf("Warning: pasting the following URL into your browser exposes the OTP secret to Google:\n  %s\n", encoderURL);
 
-  // Only newer systems have support for libqrencode. So, instead of requiring
-  // it at build-time, we look for it at run-time. If it cannot be found, the
-  // user can still type the code in manually, or they can copy the URL into
+  // Only newer systems have support for libqrencode. So instead of requiring
+  // it at build-time we look for it at run-time. If it cannot be found, the
+  // user can still type the code in manually or copy the URL into
   // their browser.
   if (isatty(1)) {
     if (!displayQRCode(url)) {
       printf(
           "Failed to use libqrencode to show QR code visually for scanning.\n"
-          "Consider typing in the OTP secret into your app manually.\n");
+          "Consider typing the OTP secret into your app manually.\n");
     }
   }
 
@@ -487,7 +487,7 @@ int main(int argc, char *argv[]) {
       if (reuse != ASK_REUSE) {
       reuse_err:
         fprintf(stderr, "Reuse of tokens is not a meaningful parameter "
-                "when in counter-based mode\n");
+                "in counter-based mode\n");
         _exit(1);
       }
       mode = HOTP_MODE;
@@ -828,7 +828,7 @@ int main(int argc, char *argv[]) {
                      "failed login attempts. In order to\ndecrease the "
                      "likelihood of synchronization problems, this window "
                      "can be\nincreased from its default size of 3 to 17. Do "
-                     "you want to do so",
+                     "you want to do so?",
                      secret, sizeof(secret), window);
     } else {
       char buf[80];
@@ -841,7 +841,7 @@ int main(int argc, char *argv[]) {
                    "against brute-force\nlogin attempts, you can enable "
                    "rate-limiting for the authentication module.\nBy default, "
                    "this limits attackers to no more than 3 login attempts "
-                   "every 30s.\nDo you want to enable rate-limiting",
+                   "every 30s.\nDo you want to enable rate-limiting?",
                    secret, sizeof(secret), ratelimit);
   } else if (r_limit > 0 && r_time > 0) {
     char buf[80];
