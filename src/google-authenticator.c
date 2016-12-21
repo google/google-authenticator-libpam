@@ -198,123 +198,137 @@ static const char *getURL(const char *secret, const char *label,
 #define UTF8_TOPHALF      "\xE2\x96\x80"
 #define UTF8_BOTTOMHALF   "\xE2\x96\x84"
 
-static void displayQRCode(const char *secret, const char *label,
-                          const int use_totp, const char *issuer) {
+// Display QR code visually. If not possible, return 0.
+static int displayQRCode(const char* url) {
+  void *qrencode = dlopen("libqrencode.so.2", RTLD_NOW | RTLD_LOCAL);
+  if (!qrencode) {
+    qrencode = dlopen("libqrencode.so.3", RTLD_NOW | RTLD_LOCAL);
+  }
+  if (!qrencode) {
+    qrencode = dlopen("libqrencode.dylib.3", RTLD_NOW | RTLD_LOCAL);
+  }
+  if (!qrencode) {
+    return 0;
+  }
+  typedef struct {
+    int version;
+    int width;
+    unsigned char *data;
+  } QRcode;
+  QRcode *(*QRcode_encodeString8bit)(const char *, int, int) =
+      (QRcode *(*)(const char *, int, int))
+      dlsym(qrencode, "QRcode_encodeString8bit");
+  void (*QRcode_free)(QRcode *qrcode) =
+      (void (*)(QRcode *))dlsym(qrencode, "QRcode_free");
+  if (!QRcode_encodeString8bit || !QRcode_free) {
+    dlclose(qrencode);
+    return 0;
+  }
+  QRcode *qrcode = QRcode_encodeString8bit(url, 0, 1);
+  const char *ptr = (char *)qrcode->data;
+  // Output QRCode using ANSI colors. Instead of black on white, we
+  // output black on grey, as that works independently of whether the
+  // user runs his terminals in a black on white or white on black color
+  // scheme.
+  // But this requires that we print a border around the entire QR Code.
+  // Otherwise, readers won't be able to recognize it.
+  if (qr_mode != QR_UTF8) {
+    for (int i = 0; i < 2; ++i) {
+      printf(ANSI_BLACKONGREY);
+      for (int x = 0; x < qrcode->width + 4; ++x) printf("  ");
+      puts(ANSI_RESET);
+    }
+    for (int y = 0; y < qrcode->width; ++y) {
+      printf(ANSI_BLACKONGREY"    ");
+      int isBlack = 0;
+      for (int x = 0; x < qrcode->width; ++x) {
+        if (*ptr++ & 1) {
+          if (!isBlack) {
+            printf(ANSI_BLACK);
+          }
+          isBlack = 1;
+        } else {
+          if (isBlack) {
+            printf(ANSI_WHITE);
+          }
+          isBlack = 0;
+        }
+        printf("  ");
+      }
+      if (isBlack) {
+        printf(ANSI_WHITE);
+      }
+      puts("    "ANSI_RESET);
+    }
+    for (int i = 0; i < 2; ++i) {
+      printf(ANSI_BLACKONGREY);
+      for (int x = 0; x < qrcode->width + 4; ++x) printf("  ");
+      puts(ANSI_RESET);
+    }
+  } else {
+    // Drawing the QRCode with Unicode block elements is desirable as
+    // it makes the code much smaller, which is often easier to scan.
+    // Unfortunately, many terminal emulators do not display these
+    // Unicode characters properly.
+    printf(ANSI_BLACKONGREY);
+    for (int i = 0; i < qrcode->width + 4; ++i) {
+      printf(" ");
+    }
+    puts(ANSI_RESET);
+    for (int y = 0; y < qrcode->width; y += 2) {
+      printf(ANSI_BLACKONGREY"  ");
+      for (int x = 0; x < qrcode->width; ++x) {
+        const int top = qrcode->data[y*qrcode->width + x] & 1;
+        int bottom = 0;
+        if (y+1 < qrcode->width) {
+          bottom = qrcode->data[(y+1)*qrcode->width + x] & 1;
+        }
+        if (top) {
+          if (bottom) {
+            printf(UTF8_BOTH);
+          } else {
+            printf(UTF8_TOPHALF);
+          }
+        } else {
+          if (bottom) {
+            printf(UTF8_BOTTOMHALF);
+          } else {
+            printf(" ");
+          }
+        }
+      }
+      puts("  "ANSI_RESET);
+    }
+    printf(ANSI_BLACKONGREY);
+    for (int i = 0; i < qrcode->width + 4; ++i) {
+      printf(" ");
+    }
+    puts(ANSI_RESET);
+  }
+  QRcode_free(qrcode);
+  dlclose(qrencode);
+  return 1;
+}
+
+// Display to the user what they need to provision their app.
+static void displayEnrollInfo(const char *secret, const char *label,
+                              const int use_totp, const char *issuer) {
   if (qr_mode == QR_NONE) {
     return;
   }
   char *encoderURL;
   const char *url = getURL(secret, label, &encoderURL, use_totp, issuer);
-  puts(encoderURL);
+  printf("Warning: pasting the following URL into your browser exposes the OTP secret to Google:\n  %s\n", encoderURL);
 
   // Only newer systems have support for libqrencode. So, instead of requiring
   // it at build-time, we look for it at run-time. If it cannot be found, the
-  // user can still type the code in manually, or he can copy the URL into
-  // his browser.
+  // user can still type the code in manually, or they can copy the URL into
+  // their browser.
   if (isatty(1)) {
-    void *qrencode = dlopen("libqrencode.so.2", RTLD_NOW | RTLD_LOCAL);
-    if (!qrencode) {
-      qrencode = dlopen("libqrencode.so.3", RTLD_NOW | RTLD_LOCAL);
-    }
-    if (!qrencode) {
-      qrencode = dlopen("libqrencode.dylib.3", RTLD_NOW | RTLD_LOCAL);
-    }
-    if (qrencode) {
-      typedef struct {
-        int version;
-        int width;
-        unsigned char *data;
-      } QRcode;
-      QRcode *(*QRcode_encodeString8bit)(const char *, int, int) =
-        (QRcode *(*)(const char *, int, int))
-        dlsym(qrencode, "QRcode_encodeString8bit");
-      void (*QRcode_free)(QRcode *qrcode) =
-        (void (*)(QRcode *))dlsym(qrencode, "QRcode_free");
-      if (QRcode_encodeString8bit && QRcode_free) {
-        QRcode *qrcode = QRcode_encodeString8bit(url, 0, 1);
-        char *ptr = (char *)qrcode->data;
-        // Output QRCode using ANSI colors. Instead of black on white, we
-        // output black on grey, as that works independently of whether the
-        // user runs his terminals in a black on white or white on black color
-        // scheme.
-        // But this requires that we print a border around the entire QR Code.
-        // Otherwise, readers won't be able to recognize it.
-        if (qr_mode != QR_UTF8) {
-          for (int i = 0; i < 2; ++i) {
-            printf(ANSI_BLACKONGREY);
-            for (int x = 0; x < qrcode->width + 4; ++x) printf("  ");
-            puts(ANSI_RESET);
-          }
-          for (int y = 0; y < qrcode->width; ++y) {
-            printf(ANSI_BLACKONGREY"    ");
-            int isBlack = 0;
-            for (int x = 0; x < qrcode->width; ++x) {
-              if (*ptr++ & 1) {
-                if (!isBlack) {
-                  printf(ANSI_BLACK);
-                }
-                isBlack = 1;
-              } else {
-                if (isBlack) {
-                  printf(ANSI_WHITE);
-                }
-                isBlack = 0;
-              }
-              printf("  ");
-            }
-            if (isBlack) {
-              printf(ANSI_WHITE);
-            }
-            puts("    "ANSI_RESET);
-          }
-          for (int i = 0; i < 2; ++i) {
-            printf(ANSI_BLACKONGREY);
-            for (int x = 0; x < qrcode->width + 4; ++x) printf("  ");
-            puts(ANSI_RESET);
-          }
-        } else {
-          // Drawing the QRCode with Unicode block elements is desirable as
-          // it makes the code much smaller, which is often easier to scan.
-          // Unfortunately, many terminal emulators do not display these
-          // Unicode characters properly.
-          printf(ANSI_BLACKONGREY);
-          for (int i = 0; i < qrcode->width + 4; ++i) {
-            printf(" ");
-          }
-          puts(ANSI_RESET);
-          for (int y = 0; y < qrcode->width; y += 2) {
-            printf(ANSI_BLACKONGREY"  ");
-            for (int x = 0; x < qrcode->width; ++x) {
-              int top = qrcode->data[y*qrcode->width + x] & 1;
-              int bottom = 0;
-              if (y+1 < qrcode->width) {
-                bottom = qrcode->data[(y+1)*qrcode->width + x] & 1;
-              }
-              if (top) {
-                if (bottom) {
-                  printf(UTF8_BOTH);
-                } else {
-                  printf(UTF8_TOPHALF);
-                }
-              } else {
-                if (bottom) {
-                  printf(UTF8_BOTTOMHALF);
-                } else {
-                  printf(" ");
-                }
-              }
-            }
-            puts("  "ANSI_RESET);
-          }
-          printf(ANSI_BLACKONGREY);
-          for (int i = 0; i < qrcode->width + 4; ++i) {
-            printf(" ");
-          }
-          puts(ANSI_RESET);
-        }
-        QRcode_free(qrcode);
-      }
-      dlclose(qrencode);
+    if (!displayQRCode(url)) {
+      printf(
+          "Failed to use libqrencode to show QR code visually for scanning.\n"
+          "Consider typing in the OTP secret into your app manually.\n");
     }
   }
 
@@ -695,7 +709,7 @@ int main(int argc, char *argv[]) {
     use_totp = mode == TOTP_MODE;
   }
   if (!quiet) {
-    displayQRCode(secret, label, use_totp, issuer);
+    displayEnrollInfo(secret, label, use_totp, issuer);
     printf("Your new secret key is: %s\n", secret);
     printf("Your verification code is %06d\n", generateCode(secret, 0));
     printf("Your emergency scratch codes are:\n");
