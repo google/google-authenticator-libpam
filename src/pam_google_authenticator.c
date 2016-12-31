@@ -153,7 +153,7 @@ static const char *get_user_name(pam_handle_t *pamh, const Params *params) {
     return NULL;
   }
   if (params->debug) {
-    log_message(LOG_INFO, pamh, "debug: start of google_authenticator for %s", username);
+    log_message(LOG_INFO, pamh, "debug: start of google_authenticator for \"%s\"", username);
   }
   return username;
 }
@@ -186,7 +186,7 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
         !pw->pw_dir ||
         *pw->pw_dir != '/') {
     err:
-      log_message(LOG_ERR, pamh, "Failed to compute location of secret file");
+      log_message(LOG_ERR, pamh, "Failed to compute location of secret file for \"%s\"", username);
       free(buf);
       free(secret_filename);
       return NULL;
@@ -363,7 +363,7 @@ static int open_secret_file(pam_handle_t *pamh, const char *secret_filename,
       // but we remember that this was the result of a missing state file.
       params->nullok = SECRETNOTFOUND;
     } else {
-      log_message(LOG_ERR, pamh, "Failed to read \"%s\"", secret_filename);
+      log_message(LOG_ERR, pamh, "Failed to read \"%s\" for \"%s\"", secret_filename, username);
     }
  error:
     if (fd >= 0) {
@@ -400,7 +400,7 @@ static int open_secret_file(pam_handle_t *pamh, const char *secret_filename,
       username = buf;
     }
     log_message(LOG_ERR, pamh,
-                "Secret file \"%s\" must be owned by %s",
+                "Secret file \"%s\" must be owned by \"%s\"",
                 secret_filename, username);
     goto error;
   }
@@ -859,7 +859,7 @@ static int rate_limit(pam_handle_t *pamh, const char *secret_filename,
   // If necessary, notify the user of the rate limiting that is in effect.
   if (exceeded) {
     log_message(LOG_ERR, pamh,
-                "Too many concurrent login attempts. Please try again.");
+                "Too many concurrent login attempts (\"%s\"). Please try again.", secret_filename);
     return -1;
   }
 
@@ -1059,10 +1059,10 @@ static int invalidate_timebased_code(int tm, pam_handle_t *pamh,
         return -1;
       }
       log_message(LOG_ERR, pamh,
-                  "Trying to reuse a previously used time-based code. "
+                  "Trying to reuse a previously used time-based code. (\"%s\")"
                   "Retry again in %d seconds. "
                   "Warning! This might mean, you are currently subject to a "
-                  "man-in-the-middle attack.", step);
+                  "man-in-the-middle attack.", secret_filename, step);
       return -1;
     }
 
@@ -1670,7 +1670,7 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
     if (rc == PAM_SUCCESS) {
       log_message(LOG_INFO , pamh, "Accepted google_authenticator for %s", username);
     } else {
-      log_message(LOG_ERR, pamh, "Invalid verification code");
+      log_message(LOG_ERR, pamh, "Invalid verification code for %s", username);
     }
   }
 
