@@ -531,7 +531,7 @@ static uint8_t *get_shared_secret(pam_handle_t *pamh,
                                   const char *secret_filename,
                                   const char *buf, int *secretLen) {
   // Decode secret key
-  int base32Len = strcspn(buf, "\n");
+  const int base32Len = strcspn(buf, "\n");
   *secretLen = (base32Len*5 + 7)/8;
   uint8_t *secret = malloc(base32Len + 1);
   if (secret == NULL) {
@@ -578,7 +578,7 @@ static int comparator(const void *a, const void *b) {
 
 static char *get_cfg_value(pam_handle_t *pamh, const char *key,
                            const char *buf) {
-  size_t key_len = strlen(key);
+  const size_t key_len = strlen(key);
   for (const char *line = buf; *line; ) {
     const char *ptr;
     if (line[0] == '"' && line[1] == ' ' && !memcmp(line+2, key, key_len) &&
@@ -605,7 +605,7 @@ static char *get_cfg_value(pam_handle_t *pamh, const char *key,
 
 static int set_cfg_value(pam_handle_t *pamh, const char *key, const char *val,
                          char **buf) {
-  size_t key_len = strlen(key);
+  const size_t key_len = strlen(key);
   char *start = NULL;
   char *stop = NULL;
 
@@ -633,19 +633,19 @@ static int set_cfg_value(pam_handle_t *pamh, const char *key, const char *val,
   }
 
   // Replace [start..stop] with the new contents.
-  size_t val_len = strlen(val);
-  size_t total_len = key_len + val_len + 4;
+  const size_t val_len = strlen(val);
+  const size_t total_len = key_len + val_len + 4;
   if (total_len <= stop - start) {
     // We are decreasing out space requirements. Shrink the buffer and pad with
     // NUL characters.
-    size_t tail_len = strlen(stop);
+    const size_t tail_len = strlen(stop);
     memmove(start + total_len, stop, tail_len + 1);
     memset(start + total_len + tail_len, 0, stop - start - total_len + 1);
   } else {
     // Must resize existing buffer. We cannot call realloc(), as it could
     // leave parts of the buffer content in unused parts of the heap.
-    size_t buf_len = strlen(*buf);
-    size_t tail_len = buf_len - (stop - *buf);
+    const size_t buf_len = strlen(*buf);
+    const size_t tail_len = buf_len - (stop - *buf);
     char *resized = malloc(buf_len - (stop - start) + total_len + 1);
     if (!resized) {
       log_message(LOG_ERR, pamh, "Out of memory");
@@ -702,7 +702,7 @@ static int step_size(pam_handle_t *pamh, const char *secret_filename,
 
   char *endptr;
   errno = 0;
-  int step = (int)strtoul(value, &endptr, 10);
+  const int step = (int)strtoul(value, &endptr, 10);
   if (errno || !*value || value == endptr ||
       (*endptr && *endptr != ' ' && *endptr != '\t' &&
        *endptr != '\n' && *endptr != '\r') ||
@@ -718,7 +718,7 @@ static int step_size(pam_handle_t *pamh, const char *secret_filename,
 
 static int get_timestamp(pam_handle_t *pamh, const char *secret_filename,
                          const char **buf) {
-  int step = step_size(pamh, secret_filename, *buf);
+  const int step = step_size(pamh, secret_filename, *buf);
   if (!step) {
     return 0;
   }
@@ -773,7 +773,7 @@ static int rate_limit(pam_handle_t *pamh, const char *secret_filename,
   }
 
   // Parse the time stamps of all previous login attempts.
-  unsigned int now = get_time();
+  const unsigned int now = get_time();
   unsigned int *timestamps = malloc(sizeof(int));
   if (!timestamps) {
   oom:
@@ -932,7 +932,7 @@ static int check_scratch_codes(pam_handle_t *pamh,
 
     // Try to interpret the line as a scratch code
     errno = 0;
-    int scratchcode = (int)strtoul(ptr, &endptr, 10);
+    const int scratchcode = (int)strtoul(ptr, &endptr, 10);
 
     // Sanity check that we read a valid scratch code. Scratchcodes are all
     // numeric eight-digit codes. There must not be any other information on
@@ -987,7 +987,7 @@ static int window_size(pam_handle_t *pamh, const char *secret_filename,
 
   char *endptr;
   errno = 0;
-  int window = (int)strtoul(value, &endptr, 10);
+  const int window = (int)strtoul(value, &endptr, 10);
   if (errno || !*value || value == endptr ||
       (*endptr && *endptr != ' ' && *endptr != '\t' &&
        *endptr != '\n' && *endptr != '\r') ||
@@ -1020,7 +1020,7 @@ static int invalidate_timebased_code(int tm, pam_handle_t *pamh,
   }
 
   // Allow the user to customize the window size parameter.
-  int window = window_size(pamh, secret_filename, *buf);
+  const int window = window_size(pamh, secret_filename, *buf);
   if (!window) {
     // The user configured a non-standard window size, but there was some
     // error with the value of this parameter.
@@ -1040,7 +1040,7 @@ static int invalidate_timebased_code(int tm, pam_handle_t *pamh,
     // Parse timestamp value.
     char *endptr;
     errno = 0;
-    int blocked = (int)strtoul(ptr, &endptr, 10);
+    const int blocked = (int)strtoul(ptr, &endptr, 10);
 
     // Treat syntactically invalid options as an error
     if (errno ||
@@ -1054,7 +1054,7 @@ static int invalidate_timebased_code(int tm, pam_handle_t *pamh,
     if (tm == blocked) {
       // The code is currently blocked from use. Disallow login.
       free((void *)disallow);
-      int step = step_size(pamh, secret_filename, *buf);
+      const int step = step_size(pamh, secret_filename, *buf);
       if (!step) {
         return -1;
       }
@@ -1121,7 +1121,7 @@ int compute_code(const uint8_t *secret, int secretLen, unsigned long value) {
   uint8_t hash[SHA1_DIGEST_LENGTH];
   hmac_sha1(secret, secretLen, val, 8, hash, SHA1_DIGEST_LENGTH);
   memset(val, 0, sizeof(val));
-  int offset = hash[SHA1_DIGEST_LENGTH - 1] & 0xF;
+  const int offset = hash[SHA1_DIGEST_LENGTH - 1] & 0xF;
   unsigned int truncatedHash = 0;
   for (int i = 0; i < 4; ++i) {
     truncatedHash <<= 8;
@@ -1164,7 +1164,7 @@ static int check_time_skew(pam_handle_t *pamh, const char *secret_filename,
     while (*ptr && *ptr != '\r' && *ptr != '\n') {
       char *endptr;
       errno = 0;
-      unsigned int i = (int)strtoul(ptr, &endptr, 10);
+      const unsigned int i = (int)strtoul(ptr, &endptr, 10);
       if (errno || ptr == endptr || (*endptr != '+' && *endptr != '-')) {
         break;
       }
@@ -1302,12 +1302,12 @@ static int check_timebased_code(pam_handle_t *pamh, const char*secret_filename,
   }
   free((void *)skew_str);
 
-  int window = window_size(pamh, secret_filename, *buf);
+  const int window = window_size(pamh, secret_filename, *buf);
   if (!window) {
     return -1;
   }
   for (int i = -((window-1)/2); i <= window/2; ++i) {
-    unsigned int hash = compute_code(secret, secretLen, tm + skew + i);
+    const unsigned int hash = compute_code(secret, secretLen, tm + skew + i);
     if (hash == (unsigned int)code) {
       return invalidate_timebased_code(tm + skew + i, pamh, secret_filename,
                                        updated, buf);
@@ -1366,12 +1366,12 @@ static int check_counterbased_code(pam_handle_t *pamh,
 
   // Compute [window_size] verification codes and compare them with user input.
   // Future codes are allowed in case the user computed but did not use a code.
-  int window = window_size(pamh, secret_filename, *buf);
+  const int window = window_size(pamh, secret_filename, *buf);
   if (!window) {
     return -1;
   }
   for (int i = 0; i < window; ++i) {
-    unsigned int hash = compute_code(secret, secretLen, hotp_counter + i);
+    const unsigned int hash = compute_code(secret, secretLen, hotp_counter + i);
     if (hash == (unsigned int)code) {
       char counter_str[40];
       snprintf(counter_str, sizeof counter_str, "%ld", hotp_counter + i + 1);
@@ -1391,7 +1391,7 @@ static int check_counterbased_code(pam_handle_t *pamh,
 static int parse_user(pam_handle_t *pamh, const char *name, uid_t *uid) {
   char *endptr;
   errno = 0;
-  long l = strtol(name, &endptr, 10);
+  const long l = strtol(name, &endptr, 10);
   if (!errno && endptr != name && l >= 0 && l <= INT_MAX) {
     *uid = (uid_t)l;
     return 0;
@@ -1438,7 +1438,7 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
       params->uid = uid;
     } else if (!memcmp(argv[i], "allowed_perm=", 13)) {
       char *remainder = NULL;
-      int perm = (int)strtol(argv[i] + 13, &remainder, 8);
+      const int perm = (int)strtol(argv[i] + 13, &remainder, 8);
       if (perm == 0 || strlen(remainder) != 0) {
         log_message(LOG_ERR, pamh,
                     "Invalid permissions in setting \"%s\"."
@@ -1507,7 +1507,7 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
                                 orig_stat.st_size)) &&
       (secret = get_shared_secret(pamh, &params, secret_filename, buf, &secretLen)) &&
        rate_limit(pamh, secret_filename, &early_updated, &buf) >= 0) {
-    long hotp_counter = get_hotp_counter(pamh, buf);
+    const long hotp_counter = get_hotp_counter(pamh, buf);
     int must_advance_counter = 0;
     char *pw = NULL, *saved_pw = NULL;
     for (int mode = 0; mode < 4; ++mode) {
@@ -1564,8 +1564,8 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
 
       // We are often dealing with a combined password and verification
       // code. Separate them now.
-      int pw_len = strlen(pw);
-      int expected_len = mode & 1 ? 8 : 6;
+      const int pw_len = strlen(pw);
+      const int expected_len = mode & 1 ? 8 : 6;
       char ch;
       if (pw_len < expected_len ||
           // Verification are six digits starting with '0'..'9',
@@ -1580,11 +1580,11 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
       }
       char *endptr;
       errno = 0;
-      long l = strtol(pw + pw_len - expected_len, &endptr, 10);
+      const long l = strtol(pw + pw_len - expected_len, &endptr, 10);
       if (errno || l < 0 || *endptr) {
         goto invalid;
       }
-      int code = (int)l;
+      const int code = (int)l;
       memset(pw + pw_len - expected_len, 0, expected_len);
 
       if ((mode == 2 || mode == 3) && !params.forward_pass) {

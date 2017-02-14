@@ -75,7 +75,7 @@ static int generateCode(const char *key, unsigned long tm) {
 
   // Pick the offset where to sample our hash value for the actual verification
   // code.
-  int offset = hash[SHA1_DIGEST_LENGTH - 1] & 0xF;
+  const int offset = hash[SHA1_DIGEST_LENGTH - 1] & 0xF;
 
   // Compute the truncated hash in a byte-order independent loop.
   unsigned int truncatedHash = 0;
@@ -158,7 +158,7 @@ static const char *getURL(const char *secret, const char *label,
                           char **encoderURL, const int use_totp, const char *issuer) {
   const char *encodedLabel = urlEncode(label);
   char *url;
-  char totp = use_totp ? 't' : 'h';
+  const char totp = use_totp ? 't' : 'h';
   if (asprintf(&url, "otpauth://%cotp/%s?secret=%s", totp, encodedLabel, secret) < 0) {
     fprintf(stderr, "String allocation failed, probably running out of memory.\n");
     _exit(1);
@@ -458,7 +458,7 @@ int main(int argc, char *argv[]) {
       { 0,                  0, 0,  0  }
     };
     idx = -1;
-    int c = getopt_long(argc, argv, optstring, options, &idx);
+    const int c = getopt_long(argc, argv, optstring, options, &idx);
     if (c > 0) {
       for (int i = 0; options[i].name; i++) {
         if (options[i].val == c) {
@@ -573,7 +573,7 @@ int main(int argc, char *argv[]) {
       }
       char *endptr;
       errno = 0;
-      long l = strtol(optarg, &endptr, 10);
+      const long l = strtol(optarg, &endptr, 10);
       if (errno || endptr == optarg || *endptr || l < 1 || l > 10) {
         fprintf(stderr, "-r requires an argument in the range 1..10\n");
         _exit(1);
@@ -590,7 +590,7 @@ int main(int argc, char *argv[]) {
       }
       char *endptr;
       errno = 0;
-      long l = strtol(optarg, &endptr, 10);
+      const long l = strtol(optarg, &endptr, 10);
       if (errno || endptr == optarg || *endptr || l < 15 || l > 600) {
         fprintf(stderr, "-R requires an argument in the range 15..600\n");
         _exit(1);
@@ -630,7 +630,7 @@ int main(int argc, char *argv[]) {
       }
       char *endptr;
       errno = 0;
-      long l = strtol(optarg, &endptr, 10);
+      const long l = strtol(optarg, &endptr, 10);
       if (errno || endptr == optarg || *endptr || l < 1 || l > 60) {
         fprintf(stderr, "-S requires an argument in the range 1..60\n");
         _exit(1);
@@ -644,7 +644,7 @@ int main(int argc, char *argv[]) {
       }
       char *endptr;
       errno = 0;
-      long l = strtol(optarg, &endptr, 10);
+      const long l = strtol(optarg, &endptr, 10);
       if (errno || endptr == optarg || *endptr || l < 1 || l > 21) {
         fprintf(stderr, "-w requires an argument in the range 1..21\n");
         _exit(1);
@@ -675,7 +675,7 @@ int main(int argc, char *argv[]) {
     _exit(1);
   }
   if (!label) {
-    uid_t uid = getuid();
+    const uid_t uid = getuid();
     const char *user = getUserName(uid);
     char hostname[128] = { 0 };
     if (gethostname(hostname, sizeof(hostname)-1)) {
@@ -693,6 +693,7 @@ int main(int argc, char *argv[]) {
 
     issuer = strdup(hostname);
   }
+  // Not const because 'fd' is reused. TODO.
   int fd = open("/dev/urandom", O_RDONLY);
   if (fd < 0) {
     perror("Failed to open \"/dev/urandom\"");
@@ -753,7 +754,7 @@ int main(int argc, char *argv[]) {
   }
   close(fd);
   if (!secret_fn) {
-    char *home = getenv("HOME");
+    const char *home = getenv("HOME");
     if (!home || *home != '/') {
       fprintf(stderr, "Cannot determine home directory\n");
       return 1;
