@@ -365,7 +365,7 @@ int main(int argc, char *argv[]) {
     verify_prompts_shown(0);
     targv[targc++] = "nullok";
     targv[targc] = NULL;
-    assert(pam_sm_authenticate(NULL, 0, targc, targv) == PAM_SUCCESS);
+    assert(pam_sm_authenticate(NULL, 0, targc, targv) == PAM_IGNORE);
     verify_prompts_shown(0);
     targv[--targc] = NULL;
     targv[0] = old_secret;
