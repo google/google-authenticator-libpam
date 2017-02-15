@@ -1686,9 +1686,13 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
 
   // If the user has not created a state file with a shared secret, and if
   // the administrator set the "nullok" option, this PAM module completes
-  // successfully, without ever prompting the user.
+  // without saying success or failure, without ever prompting the user.
+  // It's not a failure since "nullok" was specified, and it's not a success
+  // because it must be distinguishable from "good credentials given" in
+  // case the PAM config considers this module "sufficient".
+  // (or more complex equivalents)
   if (params.nullok == SECRETNOTFOUND) {
-    rc = PAM_SUCCESS;
+    rc = PAM_IGNORE;
   }
 
   // Persist the new state.
