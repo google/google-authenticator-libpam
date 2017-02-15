@@ -1567,6 +1567,16 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
       const int pw_len = strlen(pw);
       const int expected_len = mode & 1 ? 8 : 6;
       char ch;
+
+      // Full OpenSSH "bad password" is "\b\n\r\177INCORRECT", capped
+      // to original password length.
+      if (pw_len > 0 && pw[0] == '\b') {
+        log_message(LOG_INFO, pamh,
+                    "Dummy password supplied by PAM."
+                    " Did OpenSSH 'PermitRootLogin <anything but yes>' or some"
+                    " other config block this login?");
+      }
+
       if (pw_len < expected_len ||
           // Verification are six digits starting with '0'..'9',
           // scratch codes are eight digits starting with '1'..'9'
