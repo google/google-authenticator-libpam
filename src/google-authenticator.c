@@ -38,7 +38,8 @@
 #define SECRET                    "/.google_authenticator"
 #define SECRET_BITS               128         // Must be divisible by eight
 #define VERIFICATION_CODE_MODULUS (1000*1000) // Six digits
-#define SCRATCHCODES              5           // Number of initial scratchcodes
+#define SCRATCHCODES              5           // Default number of initial scratchcodes
+#define MAX_SCRATCHCODES          10          // Max number of initial scratchcodes
 #define SCRATCHCODE_LENGTH        8           // Eight digits per scratchcode
 #define BYTES_PER_SCRATCHCODE     4           // 32bit of randomness is enough
 #define BITS_PER_BASE32_CHAR      5           // Base32 expands space by 8/5
@@ -404,11 +405,12 @@ static void usage(void) {
  " -s, --secret=<file>      Specify a non-standard file location\n"
  " -S, --step-size=S        Set interval between token refreshes\n"
  " -w, --window-size=W      Set window of concurrently valid codes\n"
- " -W, --minimal-window     Disable window of concurrently valid codes");
+ " -W, --minimal-window     Disable window of concurrently valid codes\n"
+ " -e, --emergency-codes=N  Number of emergency codes to generate");
 }
 
 int main(int argc, char *argv[]) {
-  uint8_t buf[SECRET_BITS/8 + SCRATCHCODES*BYTES_PER_SCRATCHCODE];
+  uint8_t buf[SECRET_BITS/8 + MAX_SCRATCHCODES*BYTES_PER_SCRATCHCODE];
   static const char hotp[]      = "\" HOTP_COUNTER 1\n";
   static const char totp[]      = "\" TOTP_AUTH\n";
   static const char disallow[]  = "\" DISALLOW_REUSE\n";
@@ -422,7 +424,7 @@ int main(int argc, char *argv[]) {
               sizeof(step) +
               sizeof(window) +
               sizeof(ratelimit) + 5 + // NN MMM (total of five digits)
-              SCRATCHCODE_LENGTH*(SCRATCHCODES + 1 /* newline */) +
+              SCRATCHCODE_LENGTH*(MAX_SCRATCHCODES + 1 /* newline */) +
               1 /* NUL termination character */];
 
   enum { ASK_MODE, HOTP_MODE, TOTP_MODE } mode = ASK_MODE;
@@ -434,9 +436,10 @@ int main(int argc, char *argv[]) {
   char *issuer = NULL;
   int step_size = 0;
   int window_size = 0;
+  int emergency_codes = 0;
   int idx;
   for (;;) {
-    static const char optstring[] = "+hctdDfl:i:qQ:r:R:us:S:w:W";
+    static const char optstring[] = "+hctdDfl:i:qQ:r:R:us:S:w:We:";
     static struct option options[] = {
       { "help",             0, 0, 'h' },
       { "counter-based",    0, 0, 'c' },
@@ -455,6 +458,7 @@ int main(int argc, char *argv[]) {
       { "step-size",        1, 0, 'S' },
       { "window-size",      1, 0, 'w' },
       { "minimal-window",   0, 0, 'W' },
+      { "emergency-codes",  1, 0, 'e' },
       { 0,                  0, 0,  0  }
     };
     idx = -1;
@@ -657,6 +661,20 @@ int main(int argc, char *argv[]) {
         _exit(1);
       }
       window_size = -1;
+    } else if (!idx--) {
+      // emergency-codes
+      if (emergency_codes) {
+        fprintf(stderr, "Duplicate -e option detected\n");
+        _exit(1);
+      }
+      char *endptr;
+      errno = 0;
+      long l = strtol(optarg, &endptr, 10);
+      if (errno || endptr == optarg || *endptr || l < 1 || l > MAX_SCRATCHCODES) {
+        fprintf(stderr, "-e requires an argument in the range 1..%d\n", MAX_SCRATCHCODES);
+        _exit(1);
+      }
+      emergency_codes = (int)l;
     } else {
       fprintf(stderr, "Error\n");
       _exit(1);
@@ -673,6 +691,9 @@ int main(int argc, char *argv[]) {
   if ((r_time && !r_limit) || (!r_time && r_limit)) {
     fprintf(stderr, "Must set -r when setting -R, and vice versa\n");
     _exit(1);
+  }
+  if (emergency_codes == 0) {
+    emergency_codes = SCRATCHCODES;
   }
   if (!label) {
     const uid_t uid = getuid();
@@ -726,7 +747,7 @@ int main(int argc, char *argv[]) {
   } else {
     strcat(secret, hotp);
   }
-  for (int i = 0; i < SCRATCHCODES; ++i) {
+  for (int i = 0; i < emergency_codes; ++i) {
   new_scratch_code:;
     int scratch = 0;
     for (int j = 0; j < BYTES_PER_SCRATCHCODE; ++j) {
