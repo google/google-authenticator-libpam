@@ -60,3 +60,6 @@ super-clean: maintainer-clean
 	rm -fr config.lt config.status config.sub configure depcomp
 	rm -fr libtool install-sh  *~ Makefile aclocal.m4 config.h.in ltmain.sh
 	rm -fr Makefile.in test-driver compile
+
+doc:
+	(cd man && pandoc --standalone --to man google-authenticator.1.md > google-authenticator.1)
