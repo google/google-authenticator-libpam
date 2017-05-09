@@ -38,6 +38,7 @@
 #define SECRET                    "/.google_authenticator"
 #define SECRET_BITS               128         // Must be divisible by eight
 #define VERIFICATION_CODE_MODULUS (1000*1000) // Six digits
+#define SCRATCHCODES              5           // Default number of initial scratchcodes
 #define MAX_SCRATCHCODES          10          // Max number of initial scratchcodes
 #define SCRATCHCODE_LENGTH        8           // Eight digits per scratchcode
 #define BYTES_PER_SCRATCHCODE     4           // 32bit of randomness is enough
@@ -692,7 +693,7 @@ int main(int argc, char *argv[]) {
     _exit(1);
   }
   if (emergency_codes == 0) {
-    emergency_codes = MAX_SCRATCHCODES;
+    emergency_codes = SCRATCHCODES;
   }
   if (!label) {
     const uid_t uid = getuid();
