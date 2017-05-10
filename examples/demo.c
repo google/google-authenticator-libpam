@@ -74,6 +74,10 @@ static int conversation(int num_msg, PAM_CONST struct pam_message **msg,
     (*resp)->resp_retcode = 0;
     return PAM_SUCCESS;
   }
+  if (num_msg == 1 && msg[0]->msg_style == PAM_ERROR_MSG) {
+    printf("Error message to user: %s\n", msg[0]->msg);
+    return PAM_SUCCESS;
+  }
   return PAM_CONV_ERR;
 }
 

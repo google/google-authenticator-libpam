@@ -483,7 +483,7 @@ full_write(int fd, const char* buf, size_t len) {
 }
 
 // Safely overwrite the old secret file.
-// Return 0 on success.
+// Return 0 on success, errno otherwise.
 static int write_file_contents(pam_handle_t *pamh,
                                const Params *params,
                                const char *secret_filename,
@@ -568,7 +568,7 @@ cleanup:
   if (err) {
     log_message(LOG_ERR, pamh, "Failed to update secret file \"%s\": %s",
                 secret_filename, strerror(err));
-    return -1;
+    return err;
   }
   return 0;
 }
@@ -920,6 +920,22 @@ static char *get_first_pass(pam_handle_t *pamh) {
     return strdup((const char *)password);
   }
   return NULL;
+}
+
+// Show error message to the user.
+static void
+conv_error(pam_handle_t *pamh, const char* text) {
+  PAM_CONST struct pam_message msg = {
+    .msg_style = PAM_ERROR_MSG,
+    .msg       = text,
+  };
+  PAM_CONST struct pam_message *msgs = &msg;
+  struct pam_response *resp = NULL;
+  const int retval = converse(pamh, 1, &msgs, &resp);
+  if (retval != PAM_SUCCESS) {
+    log_message(LOG_ERR, pamh, "Failed to inform user of error");
+  }
+  free(resp);
 }
 
 static char *request_pass(pam_handle_t *pamh, int echocode,
@@ -1744,7 +1760,20 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
 
   // Persist the new state.
   if (early_updated || updated) {
-    if (write_file_contents(pamh, &params, secret_filename, &orig_stat, buf)) {
+    int err;
+    if ((err = write_file_contents(pamh, &params, secret_filename, &orig_stat, buf))) {
+      // Inform user of error if the error is clearly a system error
+      // and not an auth error.
+      char buf[1024];
+      switch (err) {
+      case EPERM:
+      case ENOSPC:
+      case EROFS:
+      case EIO:
+      case EDQUOT:
+        snprintf(buf, sizeof(buf), "Error \"%s\" while writing config", strerror(err));
+        conv_error(pamh, buf);
+      }
       // Could not persist new state. Deny access.
       rc = PAM_AUTH_ERR;
     }
