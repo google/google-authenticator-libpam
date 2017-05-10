@@ -456,72 +456,119 @@ static int is_totp(const char *buf) {
   return !!strstr(buf, "\" TOTP_AUTH");
 }
 
+// Wrap write() making sure that partial writes don't break everything.
+// Return 0 on success, errno otherwise.
+static int
+full_write(int fd, const char* buf, size_t len) {
+  const char* p = buf;
+  int errors = 0;
+  for (;;) {
+    const ssize_t left = len - (p - buf);
+    const ssize_t rc = write(fd, p, left);
+    if (rc == left) {
+      return 0;
+    }
+    if (rc < 0) {
+      switch (errno) {
+      case EAGAIN:
+      case EINTR:
+        if (errors++ < 3) {
+          continue;
+        }
+      }
+      return errno;
+    }
+    p += rc;
+  }
+}
+
+// Safely overwrite the old secret file.
+// Return 0 on success.
 static int write_file_contents(pam_handle_t *pamh,
                                const Params *params,
                                const char *secret_filename,
                                struct stat *orig_stat,
                                const char *buf) {
-  // Safely overwrite the old secret file.
-  char *tmp_filename = malloc(strlen(secret_filename) + 2);
+  int err = 0;
+  int fd = -1;
+  const size_t fnlength = strlen(secret_filename) + 2;
+
+  char *tmp_filename = malloc(fnlength);
   if (tmp_filename == NULL) {
- removal_failure:
-    log_message(LOG_ERR, pamh, "Failed to update secret file \"%s\"",
-                secret_filename);
-    return -1;
+    err = errno;
+    goto cleanup;
   }
 
-  strcat(strcpy(tmp_filename, secret_filename), "~");
-  int fd = open(tmp_filename,
-                O_WRONLY|O_CREAT|O_NOFOLLOW|O_TRUNC|O_EXCL, 0400);
+  if (snprintf(tmp_filename, fnlength,
+               "%s~", secret_filename) != fnlength - 1) {
+    err = ERANGE;
+    goto cleanup;
+  }
+
+  fd = open(tmp_filename,  O_WRONLY|O_CREAT|O_NOFOLLOW|O_TRUNC|O_EXCL, 0400);
   if (fd < 0) {
-    free(tmp_filename);
-    goto removal_failure;
+    err = errno;
+    goto cleanup;
   }
 
   // Make sure the secret file is still the same. This prevents attackers
   // from opening a lot of pending sessions and then reusing the same
   // scratch code multiple times.
-  struct stat sb;
-  if (stat(secret_filename, &sb) != 0 ||
-      sb.st_ino != orig_stat->st_ino ||
-      sb.st_size != orig_stat->st_size ||
-      sb.st_mtime != orig_stat->st_mtime) {
-    log_message(LOG_ERR, pamh,
-                "Secret file \"%s\" changed while trying to use "
-                "scratch code\n", secret_filename);
-    unlink(tmp_filename);
-    free(tmp_filename);
-    close(fd);
-    return -1;
+  {
+    struct stat sb;
+    if (stat(secret_filename, &sb) != 0) {
+      err = errno;
+      goto cleanup;
+    }
+
+    if (sb.st_ino != orig_stat->st_ino ||
+        sb.st_size != orig_stat->st_size ||
+        sb.st_mtime != orig_stat->st_mtime) {
+      err = EAGAIN;
+      log_message(LOG_ERR, pamh,
+                  "Secret file \"%s\" changed while trying to use "
+                  "scratch code\n", secret_filename);
+      goto cleanup;
+    }
   }
 
-  // Write the new file contents
-  if (write(fd, buf, strlen(buf)) != (ssize_t)strlen(buf)) {
-    close(fd);
-    unlink(tmp_filename);
-    free(tmp_filename);
-    goto removal_failure;
+  // Write the new file contents.
+  if ((err = full_write(fd, buf, strlen(buf)))) {
+    goto cleanup;
   }
   if (fsync(fd)) {
-    close(fd);
-    unlink(tmp_filename);
-    free(tmp_filename);
-    goto removal_failure;
+    err = errno;
+    goto cleanup;
   }
   if (close(fd)) {
-    unlink(tmp_filename);
-    free(tmp_filename);
-    goto removal_failure;
+    err = errno;
+    goto cleanup;
   }
+  fd = -1; // Prevent double-close.
   if (rename(tmp_filename, secret_filename) != 0) {
-    unlink(tmp_filename);
-    free(tmp_filename);
-    goto removal_failure;
+    err = errno;
+    goto cleanup;
   }
   free(tmp_filename);
+  tmp_filename = NULL; // Prevent unlink.
 
   if (params->debug) {
     log_message(LOG_INFO, pamh, "debug: \"%s\" written", secret_filename);
+  }
+
+cleanup:
+  if (fd >= 0) {
+    close(fd);
+  }
+  if (tmp_filename) {
+    unlink(tmp_filename);
+  }
+  free(tmp_filename);
+
+  if (err) {
+    log_message(LOG_ERR, pamh, "Failed to update secret file \"%s\": %s",
+                secret_filename, strerror(err));
+    return -1;
   }
   return 0;
 }
@@ -1697,7 +1744,7 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
 
   // Persist the new state.
   if (early_updated || updated) {
-    if (write_file_contents(pamh, &params, secret_filename, &orig_stat, buf) < 0) {
+    if (write_file_contents(pamh, &params, secret_filename, &orig_stat, buf)) {
       // Could not persist new state. Deny access.
       rc = PAM_AUTH_ERR;
     }
