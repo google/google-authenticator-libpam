@@ -98,7 +98,7 @@ Those settings are only relevant for time-based one-time-password (TOTP):
     non-standard value can be configured in case a different time-step value
     must be used.
 
-    The time interval must be betweend 1 and 60 seconds.
+    The time interval must be between 1 and 60 seconds.
 
 ## General options
 
