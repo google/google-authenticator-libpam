@@ -42,10 +42,10 @@ The main option consists of choosing the authentication token type: either time
 based or counter-based.
 
 -c, --counter-based
-: Set up counter-based verification.
+:   Set up counter-based verification.
 
 -t, --time-based
-: Set up time-based verification.
+:   Set up time-based verification.
 
 From this choice depends the available options.
 
@@ -54,17 +54,17 @@ From this choice depends the available options.
 Those settings are only relevant for counter-based one-time-password (HOTP):
 
 -w, --window-size=*W*
-: Set window of concurrently valid codes.
+:   Set window of concurrently valid codes.
 
-  By default, three tokens are valid at any one time. This accounts for
-  generated-but-not-used tokens and failed login attempts. In order to decrease
-  the likelihood of synchronization problems, this window can be increased from
-  its default size of 3.
+    By default, three tokens are valid at any one time. This accounts for
+    generated-but-not-used tokens and failed login attempts. In order to
+    decrease the likelihood of synchronization problems, this window can be
+    increased from its default size of 3.
 
-  The window size must be between 1 and 21.
+    The window size must be between 1 and 21.
 
 -W, --minimal-window
-: Disable window of concurrently valid codes.
+:   Disable window of concurrently valid codes.
 
 ## Time-based specific options
 
