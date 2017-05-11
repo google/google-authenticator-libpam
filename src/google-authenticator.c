@@ -398,7 +398,7 @@ static void usage(void) {
  " -l, --label=<label>      Override the default label in \"otpauth://\" URL\n"
  " -i, --issuer=<issuer>    Override the default issuer in \"otpauth://\" URL\n"
  " -q, --quiet              Quiet mode\n"
- " -Q, --qr-mode={NONE,ANSI,UTF8}\n"
+ " -Q, --qr-mode={NONE,ANSI,UTF8}, QRCode output mode\n"
  " -r, --rate-limit=N       Limit logins to N per every M seconds\n"
  " -R, --rate-time=M        Limit logins to N per every M seconds\n"
  " -u, --no-rate-limit      Disable rate-limiting\n"
