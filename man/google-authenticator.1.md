@@ -42,10 +42,10 @@ The main option consists of choosing the authentication token type: either time
 based or counter-based.
 
 -c, --counter-based
-: Set up counter-based verification.
+:   Set up counter-based verification.
 
 -t, --time-based
-: Set up time-based verification.
+:   Set up time-based verification.
 
 From this choice depends the available options.
 
@@ -54,14 +54,17 @@ From this choice depends the available options.
 Those settings are only relevant for counter-based one-time-password (HOTP):
 
 -w, --window-size=*W*
-: Set window of concurrently valid codes.
-  By default, three tokens are valid at any one time. This accounts for
-  generated-but-not-used tokens and failed login attempts. In order to decrease
-  the likelihood of synchronization problems, this window can be increased from
-  its default size of 3.
+:   Set window of concurrently valid codes.
+
+    By default, three tokens are valid at any one time. This accounts for
+    generated-but-not-used tokens and failed login attempts. In order to
+    decrease the likelihood of synchronization problems, this window can be
+    increased from its default size of 3.
+
+    The window size must be between 1 and 21.
 
 -W, --minimal-window
-: Disable window of concurrently valid codes.
+:   Disable window of concurrently valid codes.
 
 ## Time-based specific options
 
@@ -87,6 +90,8 @@ Those settings are only relevant for time-based one-time-password (TOTP):
     previous code, the current code, the next code) to 17 permitted codes (the
     8 previous codes, the current code, and the 8 next codes). This will permit
     for a time skew of up to 4 minutes between client and server.
+
+    The window size must be between 1 and 21.
 
 -W, --minimal-window
 :   Disable window of concurrently valid codes.
@@ -130,6 +135,9 @@ Those settings are only relevant for time-based one-time-password (TOTP):
     If the system isn't hardened against brute-force login attempts,
     rate-limiting can be enabled for the authentication module: no more than
     *N* login attempts every *M* seconds.
+
+    The rate limit must be between 1 and 10 attempts.
+    The rate time must be between 15 and 600 seconds.
 
 -e, --emergency-codes=*N*
 :   Generate *N* emergency codes.

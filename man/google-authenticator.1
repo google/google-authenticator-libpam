@@ -64,12 +64,15 @@ Those settings are only relevant for counter\-based one\-time\-password
 .TP
 .B \-w, \-\-window\-size=\f[I]W\f[]
 Set window of concurrently valid codes.
+.RS
+.PP
 By default, three tokens are valid at any one time.
 This accounts for generated\-but\-not\-used tokens and failed login
 attempts.
 In order to decrease the likelihood of synchronization problems, this
 window can be increased from its default size of 3.
-.RS
+.PP
+The window size must be between 1 and 21.
 .RE
 .TP
 .B \-W, \-\-minimal\-window
@@ -107,6 +110,8 @@ the window can be increased from its default size of 3 permitted codes
 codes (the 8 previous codes, the current code, and the 8 next codes).
 This will permit for a time skew of up to 4 minutes between client and
 server.
+.PP
+The window size must be between 1 and 21.
 .RE
 .TP
 .B \-W, \-\-minimal\-window
@@ -122,7 +127,7 @@ By default, time\-based tokens are generated every 30 seconds.
 A non\-standard value can be configured in case a different time\-step
 value must be used.
 .PP
-The time interval must be betweend 1 and 60 seconds.
+The time interval must be between 1 and 60 seconds.
 .RE
 .SS General options
 .TP
@@ -167,6 +172,9 @@ Disable rate\-limiting, or limit logins to N per every M seconds.
 If the system isn\[aq]t hardened against brute\-force login attempts,
 rate\-limiting can be enabled for the authentication module: no more
 than \f[I]N\f[] login attempts every \f[I]M\f[] seconds.
+.PP
+The rate limit must be between 1 and 10 attempts.
+The rate time must be between 15 and 600 seconds.
 .RE
 .TP
 .B \-e, \-\-emergency\-codes=\f[I]N\f[]
