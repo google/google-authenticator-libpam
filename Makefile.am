@@ -64,4 +64,4 @@ super-clean: maintainer-clean
 
 doc:
 	(cd man && pandoc --standalone --to man google-authenticator.1.md > google-authenticator.1)
-  (cd man && pandoc --standalone --to man pam_google_authenticator.8.md > pam_google_authenticator.8)
+	(cd man && pandoc --standalone --to man pam_google_authenticator.8.md > pam_google_authenticator.8)
