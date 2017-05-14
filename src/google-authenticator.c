@@ -208,7 +208,7 @@ static int displayQRCode(const char* url) {
     qrencode = dlopen("libqrencode.so.3", RTLD_NOW | RTLD_LOCAL);
   }
   if (!qrencode) {
-    qrencode = dlopen("libqrencode.dylib.3", RTLD_NOW | RTLD_LOCAL);
+    qrencode = dlopen("libqrencode.3.dylib", RTLD_NOW | RTLD_LOCAL);
   }
   if (!qrencode) {
     return 0;
