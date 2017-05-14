@@ -5,6 +5,7 @@ pamdir = $(libdir)/security
 
 bin_PROGRAMS      = google-authenticator
 man_MANS          = man/google-authenticator.1
+man_MANS          += man/pam_google_authenticator.8
 pam_LTLIBRARIES   = pam_google_authenticator.la
 
 dist_doc_DATA  = FILEFORMAT README.md
@@ -63,3 +64,4 @@ super-clean: maintainer-clean
 
 doc:
 	(cd man && pandoc --standalone --to man google-authenticator.1.md > google-authenticator.1)
+  (cd man && pandoc --standalone --to man pam_google_authenticator.8.md > pam_google_authenticator.8)
