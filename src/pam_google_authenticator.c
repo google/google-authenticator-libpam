@@ -374,7 +374,7 @@ static int open_secret_file(pam_handle_t *pamh, const char *secret_filename,
 
   if (params->debug) {
     log_message(LOG_INFO, pamh,
-                "Secret file permissions are %04o."
+                "debug: Secret file permissions are %04o."
                 " Allowed permissions are %04o",
                 orig_stat->st_mode & 03777, params->allowed_perm);
   }
