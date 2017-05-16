@@ -389,24 +389,24 @@ static char *maybeAddOption(const char *msg, char *buf, size_t nbuf,
 static void usage(void) {
   puts(
  "google-authenticator [<options>]\n"
- " -h, --help               Print this message\n"
- " -c, --counter-based      Set up counter-based (HOTP) verification\n"
- " -t, --time-based         Set up time-based (TOTP) verification\n"
- " -d, --disallow-reuse     Disallow reuse of previously used TOTP tokens\n"
- " -D, --allow-reuse        Allow reuse of previously used TOTP tokens\n"
- " -f, --force              Write file without first confirming with user\n"
- " -l, --label=<label>      Override the default label in \"otpauth://\" URL\n"
- " -i, --issuer=<issuer>    Override the default issuer in \"otpauth://\" URL\n"
- " -q, --quiet              Quiet mode\n"
- " -Q, --qr-mode={NONE,ANSI,UTF8}, QRCode output mode\n"
- " -r, --rate-limit=N       Limit logins to N per every M seconds\n"
- " -R, --rate-time=M        Limit logins to N per every M seconds\n"
- " -u, --no-rate-limit      Disable rate-limiting\n"
- " -s, --secret=<file>      Specify a non-standard file location\n"
- " -S, --step-size=S        Set interval between token refreshes\n"
- " -w, --window-size=W      Set window of concurrently valid codes\n"
- " -W, --minimal-window     Disable window of concurrently valid codes\n"
- " -e, --emergency-codes=N  Number of emergency codes to generate");
+ " -h, --help                     Print this message\n"
+ " -c, --counter-based            Set up counter-based (HOTP) verification\n"
+ " -t, --time-based               Set up time-based (TOTP) verification\n"
+ " -d, --disallow-reuse           Disallow reuse of previously used TOTP tokens\n"
+ " -D, --allow-reuse              Allow reuse of previously used TOTP tokens\n"
+ " -f, --force                    Write file without first confirming with user\n"
+ " -l, --label=<label>            Override the default label in \"otpauth://\" URL\n"
+ " -i, --issuer=<issuer>          Override the default issuer in \"otpauth://\" URL\n"
+ " -q, --quiet                    Quiet mode\n"
+ " -Q, --qr-mode={NONE,ANSI,UTF8} QRCode output mode\n"
+ " -r, --rate-limit=N             Limit logins to N per every M seconds\n"
+ " -R, --rate-time=M              Limit logins to N per every M seconds\n"
+ " -u, --no-rate-limit            Disable rate-limiting\n"
+ " -s, --secret=<file>            Specify a non-standard file location\n"
+ " -S, --step-size=S              Set interval between token refreshes\n"
+ " -w, --window-size=W            Set window of concurrently valid codes\n"
+ " -W, --minimal-window           Disable window of concurrently valid codes\n"
+ " -e, --emergency-codes=N        Number of emergency codes to generate");
 }
 
 int main(int argc, char *argv[]) {
