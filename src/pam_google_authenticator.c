@@ -1561,6 +1561,8 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
 
   // Read and process status file, then ask the user for the verification code.
   int early_updated = 0, updated = 0;
+
+  long hotp_counter = 0;
   if ((username = get_user_name(pamh, &params)) &&
       (secret_filename = get_secret_filename(pamh, &params, username, &uid)) &&
       !drop_privileges(pamh, username, uid, &old_uid, &old_gid) &&
@@ -1570,7 +1572,17 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
                                 orig_stat.st_size)) &&
       (secret = get_shared_secret(pamh, &params, secret_filename, buf, &secretLen)) &&
        rate_limit(pamh, secret_filename, &early_updated, &buf) >= 0) {
-    const long hotp_counter = get_hotp_counter(pamh, buf);
+    hotp_counter = get_hotp_counter(pamh, buf);
+  }
+
+  // Only if nullok and we do not have a code will we NOT ask for a code.
+  // In all other cases (i.e "have code" and "no nullok and no code") we DO ask for a code.
+  if (params.nullok != SECRETNOTFOUND) {
+
+    if (!secret) {
+      log_message(LOG_WARNING , pamh, "No secret configured for user %s, asking for code anyway.", username);
+    }
+
     int must_advance_counter = 0;
     char *pw = NULL, *saved_pw = NULL;
     for (int mode = 0; mode < 4; ++mode) {
@@ -1670,43 +1682,47 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
         }
       }
 
+    // Only if we actually have a secret will we try to verify the code
+    // In all other cases will we just remain at PAM_AUTH_ERR
+    if (secret) {
       // Check all possible types of verification codes.
-      switch (check_scratch_codes(pamh, &params, secret_filename, &updated, buf, code)){
-      case 1:
-        if (hotp_counter > 0) {
-          switch (check_counterbased_code(pamh, secret_filename, &updated,
-                                          &buf, secret, secretLen, code,
-                                          &params, hotp_counter,
-                                          &must_advance_counter)) {
-          case 0:
-            rc = PAM_SUCCESS;
-            break;
-          case 1:
-            goto invalid;
-          default:
-            break;
+      switch (check_scratch_codes(pamh, &params, secret_filename, &updated, buf, code)) {
+        case 1:
+          if (hotp_counter > 0) {
+            switch (check_counterbased_code(pamh, secret_filename, &updated,
+                                            &buf, secret, secretLen, code,
+                                            &params, hotp_counter,
+                                            &must_advance_counter)) {
+              case 0:
+                rc = PAM_SUCCESS;
+                    break;
+              case 1:
+                goto invalid;
+              default:
+                break;
+            }
+          } else {
+            switch (check_timebased_code(pamh, secret_filename, &updated, &buf,
+                                         secret, secretLen, code, &params)) {
+              case 0:
+                rc = PAM_SUCCESS;
+                    break;
+              case 1:
+                goto invalid;
+              default:
+                break;
+            }
           }
-        } else {
-          switch (check_timebased_code(pamh, secret_filename, &updated, &buf,
-                                       secret, secretLen, code, &params)) {
-          case 0:
-            rc = PAM_SUCCESS;
-            break;
-          case 1:
-            goto invalid;
-          default:
-            break;
-          }
-        }
-        break;
-      case 0:
-        rc = PAM_SUCCESS;
-        break;
-      default:
-        break;
+              break;
+        case 0:
+          rc = PAM_SUCCESS;
+              break;
+        default:
+          break;
       }
 
       break;
+      }
     }
 
     // Update the system password, if we were asked to forward
