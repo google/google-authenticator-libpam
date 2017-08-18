@@ -253,6 +253,7 @@ int main(int argc, char *argv[]) {
     int targc;
     int expected_good_prompts_shown;
     int expected_bad_prompts_shown;
+    int password_is_provided_from_external;
 
     switch (otp_mode) {
     case 0:
@@ -260,6 +261,7 @@ int main(int argc, char *argv[]) {
       conv_mode = TWO_PROMPTS;
       targc = 1;
       expected_good_prompts_shown = expected_bad_prompts_shown = 1;
+      password_is_provided_from_external = 0;
       break;
     case 1:
       puts("\nRunning tests, querying for verification code, "
@@ -268,6 +270,7 @@ int main(int argc, char *argv[]) {
       targv[1] = strdup("forward_pass");
       targc = 2;
       expected_good_prompts_shown = expected_bad_prompts_shown = 1;
+      password_is_provided_from_external = 0;
       break;
     case 2:
       puts("\nRunning tests with use_first_pass");
@@ -275,6 +278,7 @@ int main(int argc, char *argv[]) {
       targv[1] = strdup("use_first_pass");
       targc = 2;
       expected_good_prompts_shown = expected_bad_prompts_shown = 0;
+      password_is_provided_from_external = 1;
       break;
     case 3:
       puts("\nRunning tests with use_first_pass, forwarding system pass");
@@ -283,6 +287,7 @@ int main(int argc, char *argv[]) {
       targv[2] = strdup("forward_pass");
       targc = 3;
       expected_good_prompts_shown = expected_bad_prompts_shown = 0;
+      password_is_provided_from_external = 1;
       break;
     case 4:
       puts("\nRunning tests with try_first_pass, combining codes");
@@ -291,6 +296,7 @@ int main(int argc, char *argv[]) {
       targc = 2;
       expected_good_prompts_shown = 0;
       expected_bad_prompts_shown = 2;
+      password_is_provided_from_external = 1;
       break;
     case 5:
       puts("\nRunning tests with try_first_pass, combining codes, "
@@ -301,6 +307,7 @@ int main(int argc, char *argv[]) {
       targc = 3;
       expected_good_prompts_shown = 0;
       expected_bad_prompts_shown = 2;
+      password_is_provided_from_external = 1;
       break;
     case 6:
       puts("\nRunning tests with try_first_pass, querying for codes");
@@ -308,6 +315,7 @@ int main(int argc, char *argv[]) {
       targv[1] = strdup("try_first_pass");
       targc = 2;
       expected_good_prompts_shown = expected_bad_prompts_shown = 1;
+      password_is_provided_from_external = 1;
       break;
     default:
       assert(otp_mode == 7);
@@ -318,6 +326,7 @@ int main(int argc, char *argv[]) {
       targv[2] = strdup("forward_pass");
       targc = 3;
       expected_good_prompts_shown = expected_bad_prompts_shown = 1;
+      password_is_provided_from_external = 1;
       break;
     }
 
@@ -362,7 +371,7 @@ int main(int argc, char *argv[]) {
     const char *old_secret = targv[0];
     targv[0] = "secret=/NOSUCHFILE";
     assert(pam_sm_authenticate(NULL, 0, targc, targv) == PAM_AUTH_ERR);
-    verify_prompts_shown(0);
+    verify_prompts_shown(password_is_provided_from_external ? 0 : expected_bad_prompts_shown);
     targv[targc++] = "nullok";
     targv[targc] = NULL;
     assert(pam_sm_authenticate(NULL, 0, targc, targv) == PAM_IGNORE);
@@ -517,15 +526,17 @@ int main(int argc, char *argv[]) {
              (i >= 2 ? PAM_SUCCESS : PAM_AUTH_ERR));
       verify_prompts_shown(expected_good_prompts_shown);
     }
-    set_time(12010 * 30);
+
+    puts("Testing TIME_SKEW - noskewadj");
+    set_time(12020 * 30);
     char buf[7];
     response = buf;
     sprintf(response, "%06d", compute_code(binary_secret,
                                            binary_secret_len, 11010));
-    assert(pam_sm_authenticate(NULL, 0, 1,
-                               (const char *[]){ "noskewadj", 0 }) ==
-           PAM_AUTH_ERR);
-    verify_prompts_shown(0);
+    targv[targc] = "noskewadj";
+    assert(pam_sm_authenticate(NULL, 0, targc+1, targv) == PAM_AUTH_ERR);
+    targv[targc] = NULL;
+    verify_prompts_shown(expected_bad_prompts_shown);
     set_time(10000*30);
 
     // Test scratch codes

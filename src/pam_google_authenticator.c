@@ -1575,6 +1575,8 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
   username = get_user_name(pamh, &params);
   secret_filename = get_secret_filename(pamh, &params, username, &uid);
 
+  int stopped_by_rate_limit = 0;
+
   if (secret_filename &&
       !drop_privileges(pamh, username, uid, &old_uid, &old_gid)) {
     fd = open_secret_file(pamh, secret_filename, &params, username, uid, &orig_stat);
@@ -1585,6 +1587,8 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
     if (buf) {
       if (rate_limit(pamh, secret_filename, &early_updated, &buf) >= 0) {
         secret = get_shared_secret(pamh, &params, secret_filename, buf, &secretLen);
+      } else {
+        stopped_by_rate_limit=1;
       }
     }
   }
@@ -1593,7 +1597,9 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
 
   // Only if nullok and we do not have a code will we NOT ask for a code.
   // In all other cases (i.e "have code" and "no nullok and no code") we DO ask for a code.
-  if (params.nullok != SECRETNOTFOUND) {
+  if (!stopped_by_rate_limit &&
+        ( secret || (!secret && params.nullok != SECRETNOTFOUND ) )
+     ) {
 
     if (!secret) {
       log_message(LOG_WARNING , pamh, "No secret configured for user %s, asking for code anyway.", username);
