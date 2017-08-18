@@ -8,7 +8,7 @@ set -e
 if [ "$(which rpmbuild)" == "" ]; then
   echo "To build an rpm the tool rpmbuild needs to be installed first"
   exit 1
-fi 
+fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -17,7 +17,7 @@ if [[ -z $1 ]]; then
   exit 1
 fi
 
-cd "${DIR}/.." || exit 1
+cd "${DIR}/.."
 
 echo "Starting build"
 ./bootstrap.sh && \
@@ -30,7 +30,7 @@ make dist && \
 
    echo "=============="
    echo "Available RPMs"
-   find "${DIR}/_rpmbuild/" -type f -name 'google-authenticator*.rpm' 
+   find "${DIR}/_rpmbuild/" -type f -name 'google-authenticator*.rpm'
 ) || echo "Something went wrong" && exit 1
 
 exit 0
