@@ -1592,7 +1592,7 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
     }
 
     if (drop_privileges(pamh, drop_username, uid, &old_uid, &old_gid)) {
-      // Don't allow to continue as root.
+      // Don't allow to continue without dropping privs.
       goto out;
     }
   }
