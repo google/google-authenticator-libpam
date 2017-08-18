@@ -75,6 +75,8 @@ typedef struct Params {
 
 static char oom;
 
+static const char* nobody = "nobody";
+
 #if defined(DEMO) || defined(TESTING)
 static char* error_msg = NULL;
 
@@ -292,6 +294,7 @@ static int setgroup(int gid) {
   return old_gid;
 }
 
+// Drop privileges and return 0 on success.
 static int drop_privileges(pam_handle_t *pamh, const char *username, int uid,
                            int *old_uid, int *old_gid) {
   // Try to become the new user. This might be necessary for NFS mounted home
@@ -1550,8 +1553,6 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
 static int google_authenticator(pam_handle_t *pamh, int flags,
                                 int argc, const char **argv) {
   int        rc = PAM_AUTH_ERR;
-  const char *username;
-  char       *secret_filename = NULL;
   int        uid = -1, old_uid = -1, old_gid = -1, fd = -1;
   char       *buf = NULL;
   struct stat orig_stat = { 0 };
@@ -1572,13 +1573,31 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
   // Read and process status file, then ask the user for the verification code.
   int early_updated = 0, updated = 0;
 
-  username = get_user_name(pamh, &params);
-  secret_filename = get_secret_filename(pamh, &params, username, &uid);
-
+  const char* const username = get_user_name(pamh, &params);
+  char* const secret_filename = get_secret_filename(pamh, &params,
+                                                    username, &uid);
   int stopped_by_rate_limit = 0;
 
-  if (secret_filename &&
-      !drop_privileges(pamh, username, uid, &old_uid, &old_gid)) {
+  // Drop privileges.
+  {
+    const char* drop_username = username;
+
+    // If user doesn't exist, use 'nobody'.
+    if (uid == -1) {
+      drop_username = nobody;
+      if (!get_secret_filename(pamh, &params, drop_username, &uid)) {
+        // If 'nobody' doesn't exist, bail. We need to drop privs to *someone*.
+        goto out;
+      }
+    }
+
+    if (drop_privileges(pamh, drop_username, uid, &old_uid, &old_gid)) {
+      // Don't allow to continue as root.
+      goto out;
+    }
+  }
+
+  if (secret_filename) {
     fd = open_secret_file(pamh, secret_filename, &params, username, uid, &orig_stat);
     if (fd >= 0) {
       buf = read_file_contents(pamh, &params, secret_filename, &fd, orig_stat.st_size);
@@ -1816,6 +1835,8 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
       rc = PAM_AUTH_ERR;
     }
   }
+
+out:
   if (fd >= 0) {
     close(fd);
   }
