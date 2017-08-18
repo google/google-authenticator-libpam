@@ -51,7 +51,7 @@ rm $RPM_BUILD_ROOT/%{_lib}/security/pam_google_authenticator.la
 
 
 %changelog
-* Wed Jan 13 2016 Dan Molik <dan@d3fy.net> - 1.01
-- A new and updated build for google-authenticator
 * Fri Aug 18 2017 Niels Basjes <niels@basjes.nl> - 1.04
 - Added installing man pages
+* Wed Jan 13 2016 Dan Molik <dan@d3fy.net> - 1.01
+- A new and updated build for google-authenticator
