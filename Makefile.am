@@ -4,8 +4,8 @@ ACLOCAL_AMFLAGS = -I build
 pamdir = $(libdir)/security
 
 bin_PROGRAMS      = google-authenticator
-man_MANS          = man/google-authenticator.1
-man_MANS          += man/pam_google_authenticator.8
+dist_man_MANS     = man/google-authenticator.1
+dist_man_MANS     += man/pam_google_authenticator.8
 pam_LTLIBRARIES   = pam_google_authenticator.la
 
 dist_doc_DATA  = FILEFORMAT README.md

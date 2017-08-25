@@ -45,3 +45,5 @@ make dist
 cp google-autheticator-#.##.tar.gz ~/rpmbuild/SOURCES/
 rpmbuild -ba contrib/rpm.spec
 ```
+
+The script build-rpm.sh has been created to make these steps a bit easier to perform.
