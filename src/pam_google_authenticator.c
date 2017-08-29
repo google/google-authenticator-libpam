@@ -172,9 +172,12 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
     ? params->secret_filename_spec : SECRET;
 
   // Obtain the user's id and home directory
-  struct passwd pwbuf, *pw = NULL;
-  char *buf = NULL;
-  char *secret_filename = NULL;
+  // NOTE: These variables need to be here because of their lifetimes.
+  struct passwd *pw = NULL;     // Used
+  struct passwd pwbuf;          // Here because `pw` points into it.
+  char *buf = NULL;             // Here because `pw` members use it.
+  char *secret_filename = NULL; // Here because goto jumps.
+
   if (!params->fixed_uid) {
     #ifdef _SC_GETPW_R_SIZE_MAX
     int len = sysconf(_SC_GETPW_R_SIZE_MAX);
@@ -186,22 +189,37 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
     #endif
     buf = malloc(len);
     *uid = -1;
-    if (buf == NULL ||
-        getpwnam_r(username, &pwbuf, buf, len, &pw) ||
-        !pw ||
-        !pw->pw_dir ||
-        *pw->pw_dir != '/') {
-    err:
-      log_message(LOG_ERR, pamh, "Failed to compute location of secret file for \"%s\"", username);
-      free(buf);
-      free(secret_filename);
-      return NULL;
+    if (buf == NULL) {
+      log_message(LOG_ERR, pamh, "Short (%d) mem allocation failed", len);
+      goto errout;
+    }
+
+    const int rc = getpwnam_r(username, &pwbuf, buf, len, &pw);
+    if (rc) {
+      log_message(LOG_ERR, pamh, "getpwnam_r(\"%s\")!=0: %d", username, rc);
+      goto errout;
+    }
+
+    if (!pw) {
+      log_message(LOG_ERR, pamh, "user(\"%s\") not found", username);
+      goto errout;
+    }
+
+    if (!pw->pw_dir) {
+      log_message(LOG_ERR, pamh, "user(\"%s\") has no home dir", username);
+      goto errout;
+    }
+
+    if (*pw->pw_dir != '/') {
+      log_message(LOG_ERR, pamh, "User \"%s\" home dir not absolute", username);
+      goto errout;
     }
   }
 
   // Expand filename specification to an actual filename.
   if ((secret_filename = strdup(spec)) == NULL) {
-    goto err;
+    log_message(LOG_ERR, pamh, "Short (%d) mem allocation failed", strlen(spec));
+    goto errout;
   }
   int allow_tilde = 1;
   for (int offset = 0; secret_filename[offset];) {
@@ -212,7 +230,9 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
     if (allow_tilde && *cur == '~') {
       var_len = 1;
       if (!pw) {
-        goto err;
+        log_message(LOG_ERR, pamh,
+                    "Home dir in 'secret' not implemented when 'user' set");
+        goto errout;
       }
       subst = pw->pw_dir;
       var = cur;
@@ -220,7 +240,9 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
       if (!memcmp(cur, "${HOME}", 7)) {
         var_len = 7;
         if (!pw) {
-          goto err;
+          log_message(LOG_ERR, pamh,
+                      "Home dir in 'secret' not implemented when 'user' set");
+          goto errout;
         }
         subst = pw->pw_dir;
         var = cur;
@@ -231,11 +253,16 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
       }
     }
     if (var) {
-      size_t subst_len = strlen(subst);
+      const size_t subst_len = strlen(subst);
+      if (subst_len > 1000000) {
+        log_message(LOG_ERR, pamh, "Unexpectedly large path name: %d", subst_len);
+        goto errout;
+      }
       char *resized = realloc(secret_filename,
                               strlen(secret_filename) + subst_len + 1);
       if (!resized) {
-        goto err;
+        log_message(LOG_ERR, pamh, "Short mem allocation failed");
+        goto errout;
       }
       var += resized - secret_filename;
       secret_filename = resized;
@@ -252,6 +279,11 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
   *uid = params->fixed_uid ? params->uid : pw->pw_uid;
   free(buf);
   return secret_filename;
+
+errout:
+  free(secret_filename);
+  free(buf);
+  return NULL;
 }
 
 static int setuser(int uid) {
@@ -1886,3 +1918,9 @@ struct pam_module _pam_listfile_modstruct = {
   NULL
 };
 #endif
+/* ---- Emacs Variables ----
+ * Local Variables:
+ * c-basic-offset: 2
+ * indent-tabs-mode: nil
+ * End:
+ */
