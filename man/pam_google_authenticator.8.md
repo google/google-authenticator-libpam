@@ -8,8 +8,8 @@ pam_google_authenticator - PAM module for Google two-factor authentication
 
 **pam_google_authenticator.so** [secret=*file*] [authtok_prompt=*prompt*]
 [user=*username*] [no_strict_owner] [allowed_perm=*0nnn*] [debug]
-[try_first_pass|use_first_pass|forward_pass] [noskewadj] [no_increment_hotp]
-[nullok] [echo_verification_code]
+[try_first_pass|use_first_pass|forward_pass] [noskewadj] [no_scratch_codes]
+[no_increment_hotp] [nullok] [echo_verification_code]
 
 # DESCRIPTION
 
@@ -95,6 +95,15 @@ noskewadj
     generated. This option disable this behavior.
 
     Note that this option is only relevant for time-based (TOTP) mode.
+
+no_scratch_codes
+:   Don't use scratch codes authentication.
+
+    This option is useful when secrets files on system cannot be secured. That
+    can happen for example when multiple users has sudo root access to the
+    system, and they can read each others secrets. In this kind of situation
+    it is not possible to prevent users reading each others scratch passwords,
+    and authenticate as them, so it is best to disable that functionality.
 
 no_increment_hotp
 :   Don't increment the counter for failed attempts.

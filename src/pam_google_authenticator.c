@@ -65,6 +65,7 @@ typedef struct Params {
   int        echocode;
   int        fixed_uid;
   int        no_increment_hotp;
+  int        no_scratch_codes;
   uid_t      uid;
   enum { PROMPT = 0, TRY_FIRST_PASS, USE_FIRST_PASS } pass_mode;
   int        forward_pass;
@@ -1569,6 +1570,8 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
       params->noskewadj = 1;
     } else if (!strcmp(argv[i], "no_increment_hotp")) {
       params->no_increment_hotp = 1;
+    } else if (!strcmp(argv[i], "no_scratch_codes")) {
+      params->no_scratch_codes = 1;
     } else if (!strcmp(argv[i], "nullok")) {
       params->nullok = NULLOK;
     } else if (!strcmp(argv[i], "echo-verification-code") ||
@@ -1758,8 +1761,15 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
       // Only if we actually have a secret will we try to verify the code
       // In all other cases will we just remain at PAM_AUTH_ERR
       if (secret) {
+        int ret;
+
         // Check all possible types of verification codes.
-        switch (check_scratch_codes(pamh, &params, secret_filename, &updated, buf, code)) {
+        if (params.no_scratch_codes) {
+          ret = 1;
+        } else {
+          ret = check_scratch_codes(pamh, &params, secret_filename, &updated, buf, code);
+        }
+        switch (ret) {
         case 1:
           if (hotp_counter > 0) {
             switch (check_counterbased_code(pamh, secret_filename, &updated,

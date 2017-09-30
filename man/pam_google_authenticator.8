@@ -12,7 +12,8 @@ authentication
 [authtok_prompt=\f[I]prompt\f[]] [user=\f[I]username\f[]]
 [no_strict_owner] [allowed_perm=\f[I]0nnn\f[]] [debug]
 [try_first_pass|use_first_pass|forward_pass] [noskewadj]
-[no_increment_hotp] [nullok] [echo_verification_code]
+[no_scratch_codes] [no_increment_hotp] [nullok]
+[echo_verification_code]
 .SH DESCRIPTION
 .PP
 The \f[B]pam_google_authenticator\f[] module is designed to protect user
@@ -126,6 +127,16 @@ This option disable this behavior.
 .PP
 Note that this option is only relevant for time\-based (TOTP) mode.
 .RE
+.TP
+.B no_scratch_codes
+Don\[aq]t use scratch codes authentication.
+.PP
+This option is useful when secrets files on system cannot be secured.
+That can happen for example when multiple users has sudo root access
+to the system, and they can read each others secrets.
+In this kind of situation it is not possible to prevent users reading
+each others scratch passwords, and authenticate as them, so it is
+best to disable that functionality.
 .TP
 .B no_increment_hotp
 Don\[aq]t increment the counter for failed attempts.
