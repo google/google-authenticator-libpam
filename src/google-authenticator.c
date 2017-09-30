@@ -436,7 +436,7 @@ int main(int argc, char *argv[]) {
   char *issuer = NULL;
   int step_size = 0;
   int window_size = 0;
-  int emergency_codes = 0;
+  int emergency_codes = -1;
   int idx;
   for (;;) {
     static const char optstring[] = "+hctdDfl:i:qQ:r:R:us:S:w:We:";
@@ -663,15 +663,15 @@ int main(int argc, char *argv[]) {
       window_size = -1;
     } else if (!idx--) {
       // emergency-codes
-      if (emergency_codes) {
+      if (emergency_codes >= 0) {
         fprintf(stderr, "Duplicate -e option detected\n");
         _exit(1);
       }
       char *endptr;
       errno = 0;
       long l = strtol(optarg, &endptr, 10);
-      if (errno || endptr == optarg || *endptr || l < 1 || l > MAX_SCRATCHCODES) {
-        fprintf(stderr, "-e requires an argument in the range 1..%d\n", MAX_SCRATCHCODES);
+      if (errno || endptr == optarg || *endptr || l < 0 || l > MAX_SCRATCHCODES) {
+        fprintf(stderr, "-e requires an argument in the range 0..%d\n", MAX_SCRATCHCODES);
         _exit(1);
       }
       emergency_codes = (int)l;
@@ -692,7 +692,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Must set -r when setting -R, and vice versa\n");
     _exit(1);
   }
-  if (emergency_codes == 0) {
+  if (emergency_codes < 0) {
     emergency_codes = SCRATCHCODES;
   }
   if (!label) {
