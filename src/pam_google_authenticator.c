@@ -1853,15 +1853,15 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
     if ((err = write_file_contents(pamh, &params, secret_filename, &orig_stat, buf))) {
       // Inform user of error if the error is clearly a system error
       // and not an auth error.
-      char buf[1024];
+      char s[1024];
       switch (err) {
       case EPERM:
       case ENOSPC:
       case EROFS:
       case EIO:
       case EDQUOT:
-        snprintf(buf, sizeof(buf), "Error \"%s\" while writing config", strerror(err));
-        conv_error(pamh, buf);
+        snprintf(s, sizeof(s), "Error \"%s\" while writing config", strerror(err));
+        conv_error(pamh, s);
       }
       // Could not persist new state. Deny access.
       rc = PAM_AUTH_ERR;
