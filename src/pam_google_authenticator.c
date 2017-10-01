@@ -51,6 +51,7 @@
 #include "base32.h"
 #include "hmac.h"
 #include "sha1.h"
+#include "util.h"
 
 #define MODULE_NAME   "pam_google_authenticator"
 #define SECRET        "~/.google_authenticator"
@@ -467,7 +468,7 @@ static char *read_file_contents(pam_handle_t *pamh,
     log_message(LOG_ERR, pamh, "Could not read \"%s\"", secret_filename);
  error:
     if (buf) {
-      memset(buf, 0, filesize);
+      explicit_bzero(buf, filesize);
       free(buf);
     }
     return NULL;
@@ -633,7 +634,7 @@ static uint8_t *get_shared_secret(pam_handle_t *pamh,
     log_message(LOG_ERR, pamh,
                 "Could not find a valid BASE32 encoded secret in \"%s\"",
                 secret_filename);
-    memset(secret, 0, base32Len);
+    explicit_bzero(secret, base32Len);
     free(secret);
     return NULL;
   }
@@ -1228,14 +1229,14 @@ int compute_code(const uint8_t *secret, int secretLen, unsigned long value) {
   }
   uint8_t hash[SHA1_DIGEST_LENGTH];
   hmac_sha1(secret, secretLen, val, 8, hash, SHA1_DIGEST_LENGTH);
-  memset(val, 0, sizeof(val));
+  explicit_bzero(val, sizeof(val));
   const int offset = hash[SHA1_DIGEST_LENGTH - 1] & 0xF;
   unsigned int truncatedHash = 0;
   for (int i = 0; i < 4; ++i) {
     truncatedHash <<= 8;
     truncatedHash  |= hash[offset + i];
   }
-  memset(hash, 0, sizeof(hash));
+  explicit_bzero(hash, sizeof(hash));
   truncatedHash &= 0x7FFFFFFF;
   truncatedHash %= 1000000;
   return truncatedHash;
@@ -1669,7 +1670,7 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
         // code. This error should never trigger. The unittest checks for
         // this.
         if (pw) {
-          memset(pw, 0, strlen(pw));
+          explicit_bzero(pw, strlen(pw));
           free(pw);
           pw = NULL;
         }
@@ -1731,7 +1732,7 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
           (ch = pw[pw_len - expected_len]) > '9' ||
           ch < (expected_len == 8 ? '1' : '0')) {
       invalid:
-        memset(pw, 0, pw_len);
+        explicit_bzero(pw, pw_len);
         free(pw);
         pw = NULL;
         continue;
@@ -1809,11 +1810,11 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
 
     // Clear out password and deallocate memory
     if (pw) {
-      memset(pw, 0, strlen(pw));
+      explicit_bzero(pw,strlen(pw));
       free(pw);
     }
     if (saved_pw) {
-      memset(saved_pw, 0, strlen(saved_pw));
+      explicit_bzero(saved_pw, strlen(saved_pw));
       free(saved_pw);
     }
 
@@ -1887,11 +1888,11 @@ out:
 
   // Clean up
   if (buf) {
-    memset(buf, 0, strlen(buf));
+    explicit_bzero(buf, strlen(buf));
     free(buf);
   }
   if (secret) {
-    memset(secret, 0, secretLen);
+    explicit_bzero(secret, secretLen);
     free(secret);
   }
   return rc;
