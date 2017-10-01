@@ -670,7 +670,7 @@ static char *get_cfg_value(pam_handle_t *pamh, const char *key,
   const size_t key_len = strlen(key);
   for (const char *line = buf; *line; ) {
     const char *ptr;
-    if (line[0] == '"' && line[1] == ' ' && !memcmp(line+2, key, key_len) &&
+    if (line[0] == '"' && line[1] == ' ' && !strncmp(line+2, key, key_len) &&
         (!*(ptr = line+2+key_len) || *ptr == ' ' || *ptr == '\t' ||
          *ptr == '\r' || *ptr == '\n')) {
       ptr += strspn(ptr, " \t");
@@ -701,7 +701,7 @@ static int set_cfg_value(pam_handle_t *pamh, const char *key, const char *val,
   // Find an existing line, if any.
   for (char *line = *buf; *line; ) {
     char *ptr;
-    if (line[0] == '"' && line[1] == ' ' && !memcmp(line+2, key, key_len) &&
+    if (line[0] == '"' && line[1] == ' ' && !strncmp(line+2, key, key_len) &&
         (!*(ptr = line+2+key_len) || *ptr == ' ' || *ptr == '\t' ||
          *ptr == '\r' || *ptr == '\n')) {
       start = line;
@@ -759,7 +759,7 @@ static int set_cfg_value(pam_handle_t *pamh, const char *key, const char *val,
   // Check if there are any other occurrences of "value". If so, delete them.
   for (char *line = start + 4 + key_len + val_len; *line; ) {
     char *ptr;
-    if (line[0] == '"' && line[1] == ' ' && !memcmp(line+2, key, key_len) &&
+    if (line[0] == '"' && line[1] == ' ' && !strncmp(line+2, key, key_len) &&
         (!*(ptr = line+2+key_len) || *ptr == ' ' || *ptr == '\t' ||
          *ptr == '\r' || *ptr == '\n')) {
       start = line;
@@ -1533,18 +1533,18 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
   params->debug = 0;
   params->echocode = PAM_PROMPT_ECHO_OFF;
   for (int i = 0; i < argc; ++i) {
-    if (!memcmp(argv[i], "secret=", 7)) {
+    if (!strncmp(argv[i], "secret=", 7)) {
       params->secret_filename_spec = argv[i] + 7;
-    } else if (!memcmp(argv[i], "authtok_prompt=", 15)) {
+    } else if (!strncmp(argv[i], "authtok_prompt=", 15)) {
       params->authtok_prompt = argv[i] + 15;
-    } else if (!memcmp(argv[i], "user=", 5)) {
+    } else if (!strncmp(argv[i], "user=", 5)) {
       uid_t uid;
       if (parse_user(pamh, argv[i] + 5, &uid) < 0) {
         return -1;
       }
       params->fixed_uid = 1;
       params->uid = uid;
-    } else if (!memcmp(argv[i], "allowed_perm=", 13)) {
+    } else if (!strncmp(argv[i], "allowed_perm=", 13)) {
       char *remainder = NULL;
       const int perm = (int)strtol(argv[i] + 13, &remainder, 8);
       if (perm == 0 || strlen(remainder) != 0) {
