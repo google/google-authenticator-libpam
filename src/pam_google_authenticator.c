@@ -539,7 +539,7 @@ static int write_file_contents(pam_handle_t *pamh,
   }
 
   if (snprintf(tmp_filename, fnlength,
-               "%s~", secret_filename) != fnlength - 1) {
+               "%s~", secret_filename) != (int) fnlength - 1) {
     err = ERANGE;
     goto cleanup;
   }
@@ -724,7 +724,7 @@ static int set_cfg_value(pam_handle_t *pamh, const char *key, const char *val,
   // Replace [start..stop] with the new contents.
   const size_t val_len = strlen(val);
   const size_t total_len = key_len + val_len + 4;
-  if (total_len <= stop - start) {
+  if (total_len <= (size_t) (stop - start)) {
     // We are decreasing out space requirements. Shrink the buffer and pad with
     // NUL characters.
     const size_t tail_len = strlen(stop);
@@ -1325,7 +1325,7 @@ static int check_time_skew(pam_handle_t *pamh, const char *secret_filename,
     unsigned int last_tm = tms[0];
     int last_skew = skews[0];
     int avg_skew = last_skew;
-    for (int i = 1; i < sizeof(tms)/sizeof(int); ++i) {
+    for (size_t i = 1; i < sizeof(tms)/sizeof(int); ++i) {
       // Check that we have a consecutive sequence of timestamps with no big
       // gaps in between. Also check that the time skew stays constant. Allow
       // a minor amount of fuzziness on all parameters.

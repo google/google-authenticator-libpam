@@ -749,11 +749,11 @@ int main(int argc, char *argv[]) {
   }
   for (int i = 0; i < emergency_codes; ++i) {
   new_scratch_code:;
-    int scratch = 0;
+    size_t scratch = 0;
     for (int j = 0; j < BYTES_PER_SCRATCHCODE; ++j) {
       scratch = 256*scratch + buf[SECRET_BITS/8 + BYTES_PER_SCRATCHCODE*i + j];
     }
-    int modulus = 1;
+    size_t modulus = 1;
     for (int j = 0; j < SCRATCHCODE_LENGTH; j++) {
       modulus *= 10;
     }
@@ -768,10 +768,10 @@ int main(int argc, char *argv[]) {
       goto new_scratch_code;
     }
     if (!quiet) {
-      printf("  %08d\n", scratch);
+      printf("  %08zu\n", scratch);
     }
     snprintf(strrchr(secret, '\000'), sizeof(secret) - strlen(secret),
-             "%08d\n", scratch);
+             "%08zu\n", scratch);
   }
   close(fd);
   if (!secret_fn) {
