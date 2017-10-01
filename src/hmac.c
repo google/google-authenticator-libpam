@@ -19,6 +19,7 @@
 
 #include "hmac.h"
 #include "sha1.h"
+#include "util.h"
 
 void hmac_sha1(const uint8_t *key, int keyLength,
                const uint8_t *data, int dataLength,
@@ -73,7 +74,7 @@ void hmac_sha1(const uint8_t *key, int keyLength,
   memcpy(result, sha, resultLength);
 
   // Zero out all internal data structures
-  memset(hashed_key, 0, sizeof(hashed_key));
-  memset(sha, 0, sizeof(sha));
-  memset(tmp_key, 0, sizeof(tmp_key));
+  explicit_bzero(hashed_key, sizeof(hashed_key));
+  explicit_bzero(sha, sizeof(sha));
+  explicit_bzero(tmp_key, sizeof(tmp_key));
 }
