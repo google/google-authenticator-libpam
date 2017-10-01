@@ -794,10 +794,10 @@ int main(int argc, char *argv[]) {
     strcat(strcpy(secret_fn, home), SECRET);
   }
   if (!force) {
-    char buf[1024];
-    snprintf(buf, sizeof buf, "Do you want me to update your \"%s\" file?",
+    char s[1024];
+    snprintf(s, sizeof s, "Do you want me to update your \"%s\" file?",
              secret_fn);
-    if (!maybe(buf)) {
+    if (!maybe(s)) {
       exit(0);
     }
   }
@@ -821,9 +821,9 @@ int main(int argc, char *argv[]) {
       addOption(secret, sizeof(secret), disallow);
     }
     if (step_size) {
-      char buf[80];
-      snprintf(buf, sizeof buf, "\" STEP_SIZE %d\n", step_size);
-      addOption(secret, sizeof(secret), buf);
+      char s[80];
+      snprintf(s, sizeof s, "\" STEP_SIZE %d\n", step_size);
+      addOption(secret, sizeof(secret), s);
     }
     if (!window_size) {
       maybeAddOption("By default, a new token is generated every 30 seconds by"
@@ -842,11 +842,11 @@ int main(int argc, char *argv[]) {
                      "\nDo you want to do so?",
                      secret, sizeof(secret), window);
     } else {
-      char buf[80];
+      char s[80];
       // TODO: Should 3 really be the minimal window size for TOTP?
       // If so, the code should not allow -w=1 here.
-      snprintf(buf, sizeof buf, "\" WINDOW_SIZE %d\n", window_size > 0 ? window_size : 3);
-      addOption(secret, sizeof(secret), buf);
+      snprintf(s, sizeof s, "\" WINDOW_SIZE %d\n", window_size > 0 ? window_size : 3);
+      addOption(secret, sizeof(secret), s);
     }
   } else {
     // Counter based.
@@ -859,9 +859,9 @@ int main(int argc, char *argv[]) {
                      "you want to do so?",
                      secret, sizeof(secret), window);
     } else {
-      char buf[80];
-      snprintf(buf, sizeof buf, "\" WINDOW_SIZE %d\n", window_size > 0 ? window_size : 1);
-      addOption(secret, sizeof(secret), buf);
+      char s[80];
+      snprintf(s, sizeof s, "\" WINDOW_SIZE %d\n", window_size > 0 ? window_size : 1);
+      addOption(secret, sizeof(secret), s);
     }
   }
   if (!r_limit && !r_time) {
@@ -872,9 +872,9 @@ int main(int argc, char *argv[]) {
                    "every 30s.\nDo you want to enable rate-limiting?",
                    secret, sizeof(secret), ratelimit);
   } else if (r_limit > 0 && r_time > 0) {
-    char buf[80];
-    snprintf(buf, sizeof buf, "\" RATE_LIMIT %d %d\n", r_limit, r_time);
-    addOption(secret, sizeof(secret), buf);
+    char s[80];
+    snprintf(s, sizeof s, "\" RATE_LIMIT %d %d\n", r_limit, r_time);
+    addOption(secret, sizeof(secret), s);
   }
 
   fd = open(tmp_fn, O_WRONLY|O_EXCL|O_CREAT|O_NOFOLLOW|O_TRUNC, 0400);
