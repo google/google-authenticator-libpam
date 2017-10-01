@@ -236,35 +236,34 @@ sha1_init(SHA1_INFO *sha1_info)
 void
 sha1_update(SHA1_INFO *sha1_info, const uint8_t *buffer, int count)
 {
-    int i;
     uint32_t clo;
 
     clo = T32(sha1_info->count_lo + ((uint32_t) count << 3));
     if (clo < sha1_info->count_lo) {
-    ++sha1_info->count_hi;
+        ++sha1_info->count_hi;
     }
     sha1_info->count_lo = clo;
     sha1_info->count_hi += (uint32_t) count >> 29;
     if (sha1_info->local) {
-    i = SHA1_BLOCKSIZE - sha1_info->local;
-    if (i > count) {
-        i = count;
-    }
-    memcpy(((uint8_t *) sha1_info->data) + sha1_info->local, buffer, i);
-    count -= i;
-    buffer += i;
-    sha1_info->local += i;
-    if (sha1_info->local == SHA1_BLOCKSIZE) {
-        sha1_transform(sha1_info);
-    } else {
-        return;
-    }
+        int i = SHA1_BLOCKSIZE - sha1_info->local;
+        if (i > count) {
+            i = count;
+        }
+        memcpy(((uint8_t *) sha1_info->data) + sha1_info->local, buffer, i);
+        count -= i;
+        buffer += i;
+        sha1_info->local += i;
+        if (sha1_info->local == SHA1_BLOCKSIZE) {
+            sha1_transform(sha1_info);
+        } else {
+            return;
+        }
     }
     while (count >= SHA1_BLOCKSIZE) {
-    memcpy(sha1_info->data, buffer, SHA1_BLOCKSIZE);
-    buffer += SHA1_BLOCKSIZE;
-    count -= SHA1_BLOCKSIZE;
-    sha1_transform(sha1_info);
+        memcpy(sha1_info->data, buffer, SHA1_BLOCKSIZE);
+        buffer += SHA1_BLOCKSIZE;
+        count -= SHA1_BLOCKSIZE;
+        sha1_transform(sha1_info);
     }
     memcpy(sha1_info->data, buffer, count);
     sha1_info->local = count;
@@ -309,11 +308,11 @@ sha1_final(SHA1_INFO *sha1_info, uint8_t digest[20])
     count = (int) ((lo_bit_count >> 3) & 0x3f);
     ((uint8_t *) sha1_info->data)[count++] = 0x80;
     if (count > SHA1_BLOCKSIZE - 8) {
-    memset(((uint8_t *) sha1_info->data) + count, 0, SHA1_BLOCKSIZE - count);
-    sha1_transform(sha1_info);
-    memset((uint8_t *) sha1_info->data, 0, SHA1_BLOCKSIZE - 8);
+        memset(((uint8_t *) sha1_info->data) + count, 0, SHA1_BLOCKSIZE - count);
+        sha1_transform(sha1_info);
+        memset((uint8_t *) sha1_info->data, 0, SHA1_BLOCKSIZE - 8);
     } else {
-    memset(((uint8_t *) sha1_info->data) + count, 0,
+        memset(((uint8_t *) sha1_info->data) + count, 0,
         SHA1_BLOCKSIZE - 8 - count);
     }
     sha1_info->data[56] = (uint8_t)((hi_bit_count >> 24) & 0xff);
