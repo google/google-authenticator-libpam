@@ -4,6 +4,11 @@ AC_CONFIG_SRCDIR([src/google-authenticator.c])
 AC_CONFIG_AUX_DIR([build])
 AC_CONFIG_MACRO_DIR([build])
 
+# --enable-silent-rules
+m4_ifdef([AM_SILENT_RULES],
+  [AM_SILENT_RULES([yes])],
+  [AC_SUBST([AM_DEFAULT_VERBOSITY], [1])])
+
 AC_USE_SYSTEM_EXTENSIONS
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AM_MAINTAINER_MODE([enable])
