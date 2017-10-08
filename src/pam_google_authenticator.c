@@ -779,7 +779,7 @@ static int set_cfg_value(pam_handle_t *pamh, const char *key, const char *val,
   return 0;
 }
 
-static int step_size(pam_handle_t *pamh, const char *secret_filename,
+static unsigned int step_size(pam_handle_t *pamh, const char *secret_filename,
                      const char *buf) {
   const char *value = get_cfg_value(pamh, "STEP_SIZE", buf);
   if (!value) {
@@ -792,7 +792,7 @@ static int step_size(pam_handle_t *pamh, const char *secret_filename,
 
   char *endptr;
   errno = 0;
-  const int step = (int)strtoul(value, &endptr, 10);
+  const unsigned int step = (unsigned int)strtoul(value, &endptr, 10);
   if (errno || !*value || value == endptr ||
       (*endptr && *endptr != ' ' && *endptr != '\t' &&
        *endptr != '\n' && *endptr != '\r') ||
@@ -806,9 +806,9 @@ static int step_size(pam_handle_t *pamh, const char *secret_filename,
   return step;
 }
 
-static int get_timestamp(pam_handle_t *pamh, const char *secret_filename,
+static unsigned int get_timestamp(pam_handle_t *pamh, const char *secret_filename,
                          const char **buf) {
-  const int step = step_size(pamh, secret_filename, *buf);
+  const unsigned int step = step_size(pamh, secret_filename, *buf);
   if (!step) {
     return 0;
   }
@@ -1246,7 +1246,7 @@ int compute_code(const uint8_t *secret, int secretLen, unsigned long value) {
  * this skew factor for future login attempts.
  */
 static int check_time_skew(pam_handle_t *pamh,
-                           int *updated, char **buf, int skew, int tm) {
+                           int *updated, char **buf, int skew, unsigned int tm) {
   int rc = -1;
 
   // Parse current RESETTING_TIME_SKEW line, if any.
@@ -1395,7 +1395,7 @@ static int check_timebased_code(pam_handle_t *pamh, const char*secret_filename,
   }
 
   // Compute verification codes and compare them with user input
-  const int tm = get_timestamp(pamh, secret_filename, (const char **)buf);
+  const unsigned int tm = get_timestamp(pamh, secret_filename, (const char **)buf);
   if (!tm) {
     return -1;
   }
