@@ -1650,7 +1650,7 @@ static int google_authenticator(pam_handle_t *pamh,
   // Only if nullok and we do not have a code will we NOT ask for a code.
   // In all other cases (i.e "have code" and "no nullok and no code") we DO ask for a code.
   if (!stopped_by_rate_limit &&
-        ( secret || (!secret && params.nullok != SECRETNOTFOUND ) )
+        ( secret || params.nullok != SECRETNOTFOUND )
      ) {
 
     if (!secret) {
