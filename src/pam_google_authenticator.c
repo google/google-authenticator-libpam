@@ -1245,7 +1245,7 @@ int compute_code(const uint8_t *secret, int secretLen, unsigned long value) {
 /* If a user repeated attempts to log in with the same time skew, remember
  * this skew factor for future login attempts.
  */
-static int check_time_skew(pam_handle_t *pamh, const char *secret_filename,
+static int check_time_skew(pam_handle_t *pamh,
                            int *updated, char **buf, int skew, int tm) {
   int rc = -1;
 
@@ -1444,7 +1444,7 @@ static int check_timebased_code(pam_handle_t *pamh, const char*secret_filename,
       if(params->debug) {
         log_message(LOG_INFO, pamh, "debug: time skew adjusted");
       }
-      return check_time_skew(pamh, secret_filename, updated, buf, skew, tm);
+      return check_time_skew(pamh, updated, buf, skew, tm);
     }
   }
 
@@ -1458,7 +1458,7 @@ static int check_timebased_code(pam_handle_t *pamh, const char*secret_filename,
 static int check_counterbased_code(pam_handle_t *pamh,
                                    const char*secret_filename, int *updated,
                                    char **buf, const uint8_t*secret,
-                                   int secretLen, int code, Params *params,
+                                   int secretLen, int code,
                                    long hotp_counter,
                                    int *must_advance_counter) {
   if (hotp_counter < 1) {
@@ -1583,7 +1583,7 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
   return 0;
 }
 
-static int google_authenticator(pam_handle_t *pamh, int flags,
+static int google_authenticator(pam_handle_t *pamh,
                                 int argc, const char **argv) {
   int        rc = PAM_AUTH_ERR;
   int        uid = -1, old_uid = -1, old_gid = -1, fd = -1;
@@ -1765,7 +1765,7 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
           if (hotp_counter > 0) {
             switch (check_counterbased_code(pamh, secret_filename, &updated,
                                             &buf, secret, secretLen, code,
-                                            &params, hotp_counter,
+                                            hotp_counter,
                                             &must_advance_counter)) {
             case 0:
               rc = PAM_SUCCESS;
@@ -1898,13 +1898,24 @@ out:
   return rc;
 }
 
-PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
+#ifndef UNUSED_ATTR
+# if __GNUC__ >= 3 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7)
+#  define UNUSED_ATTR __attribute__((__unused__))
+# else
+#  define UNUSED_ATTR
+# endif
+#endif
+
+PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags UNUSED_ATTR,
                                    int argc, const char **argv) {
-  return google_authenticator(pamh, flags, argc, argv);
+  return google_authenticator(pamh, argc, argv);
 }
 
-PAM_EXTERN int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc,
-                              const char **argv) {
+PAM_EXTERN int
+pam_sm_setcred (pam_handle_t *pamh UNUSED_ATTR,
+                int flags UNUSED_ATTR,
+                int argc UNUSED_ATTR,
+                const char **argv UNUSED_ATTR) {
   return PAM_SUCCESS;
 }
 
