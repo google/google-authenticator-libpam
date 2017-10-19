@@ -1,0 +1,23 @@
+Package: libpam-webscale-authenticator
+Version: @PACKAGE_VERSION@
+Replaces: libpam-google-authenticator
+Conflicts: libpam-google-authenticator
+Architecture: amd64
+Depends: libc6 (>= 2.14), libpam0g (>= 0.99.7.1), libqrencode3
+Section: admin
+Priority: optional
+Homepage: http://code.google.com/p/google-authenticator/
+Maintainer: Webscale Builder <builder@webscalenetworks.com>
+Description: Two-step verification
+ Derived from https://github.com/webscale-networks/google-authenticator-libpam,
+ and a drop-in replacement for the Ubuntu package libpam-google-authenticator.
+ .
+ The Google Authenticator project includes implementations of one-time
+ passcode generators for several mobile platforms, as well as a
+ pluggable authentication module (PAM). One-time passcodes are generated
+ using open standards developed by the Initiative for Open
+ Authentication (OATH) (which is unrelated to OAuth).
+ .
+ These implementations support the HMAC-Based One-time Password (HOTP)
+ algorithm specified in RFC 4226 and the Time-based One-time Password
+ (TOTP) algorithm currently in draft.
