@@ -71,6 +71,7 @@ typedef struct Params {
   int        debug;
   int        no_strict_owner;
   int        allowed_perm;
+  int        revalidate;
 } Params;
 
 static char oom;
@@ -1574,6 +1575,17 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
     } else if (!strcmp(argv[i], "echo-verification-code") ||
                !strcmp(argv[i], "echo_verification_code")) {
       params->echocode = PAM_PROMPT_ECHO_ON;
+    } else if (!memcmp(argv[i], "revalidate=", 11)) {
+      char *remainder = NULL;
+      const long revalidate = strtol(argv[i] + 11, &remainder, 10);
+      if (*remainder || revalidate < 0 || revalidate > INT_MAX) {
+        log_message(LOG_ERR, pamh,
+                    "Invalid setting revalidate=\"%s\"."
+                    " Must be a non-negative integer.",
+                    argv[i]);
+        return -1;
+      }
+      params->revalidate = (int)revalidate;
     } else {
       log_message(LOG_ERR, pamh, "Unrecognized option \"%s\"", argv[i]);
       return -1;
@@ -1609,6 +1621,7 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
   char* const secret_filename = get_secret_filename(pamh, &params,
                                                     username, &uid);
   int stopped_by_rate_limit = 0;
+  int revalidated = 0;
 
   // Drop privileges.
   {
@@ -1707,6 +1720,23 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
         break;
       }
       if (!pw) {
+        char* host;
+        pam_get_item(pamh, PAM_RHOST, (const void **)&host);
+        if (mode == 1 && pam_get_item(pamh, PAM_RHOST, (const void **)&host) == PAM_SUCCESS) {
+          char revalidate_key[100];
+          snprintf(revalidate_key, sizeof(revalidate_key), "REVALIDATE_%s", host);
+          const char *value = get_cfg_value(pamh, revalidate_key, buf);
+          if (value) {
+            time_t revalidate = strtoul(value, 0, 10);
+            if (get_time() < revalidate) {
+              log_message(LOG_INFO, pamh, "Accepting previous token validation for %s at %s",
+                username, host);
+              rc = PAM_SUCCESS;
+              revalidated = 1;
+              goto success;
+            }
+          }
+        }
         continue;
       }
 
@@ -1829,7 +1859,19 @@ static int google_authenticator(pam_handle_t *pamh, int flags,
     }
 
     // Display a success or error message
+  success:
     if (rc == PAM_SUCCESS) {
+      if (!revalidated) {
+        char* host;
+        if (params.revalidate && pam_get_item(pamh, PAM_RHOST, (const void **)&host) == PAM_SUCCESS) {
+          char revalidate_key[100], revalidate_val[40];
+          snprintf(revalidate_key, sizeof(revalidate_key), "REVALIDATE_%s", host);
+          snprintf(revalidate_val, sizeof(revalidate_val), "%ld", get_time() + params.revalidate);
+          if (set_cfg_value(pamh, revalidate_key, revalidate_val, &buf) < 0) {
+            rc = PAM_AUTH_ERR;
+          }
+        }
+      }
       log_message(LOG_INFO , pamh, "Accepted google_authenticator for %s", username);
     } else {
       log_message(LOG_ERR, pamh, "Invalid verification code for %s", username);
