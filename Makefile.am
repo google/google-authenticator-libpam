@@ -13,7 +13,7 @@ dist_html_DATA = totp.html
 
 MODULES_LDFLAGS = -avoid-version -module -shared -export-dynamic
 
-CORE_SRC  =
+CORE_SRC  = src/util.h   src/util.c
 CORE_SRC += src/base32.h src/base32.c
 CORE_SRC += src/hmac.h   src/hmac.c
 CORE_SRC += src/sha1.h   src/sha1.c
