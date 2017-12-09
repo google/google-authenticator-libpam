@@ -531,7 +531,7 @@ static int write_file_contents(pam_handle_t *pamh,
                                const char *buf) {
   int err = 0;
   int fd = -1;
-  const size_t fnlength = strlen(secret_filename) + 2;
+  const size_t fnlength = strlen(secret_filename) + 1 + 6 + 1;
 
   char *tmp_filename = malloc(fnlength);
   if (tmp_filename == NULL) {
@@ -539,14 +539,17 @@ static int write_file_contents(pam_handle_t *pamh,
     goto cleanup;
   }
 
-  if (snprintf(tmp_filename, fnlength,
-               "%s~", secret_filename) != fnlength - 1) {
+  if (fnlength - 1 != snprintf(tmp_filename, fnlength,
+                               "%s~XXXXXX", secret_filename)) {
     err = ERANGE;
     goto cleanup;
   }
-
-  fd = open(tmp_filename,  O_WRONLY|O_CREAT|O_NOFOLLOW|O_TRUNC|O_EXCL, 0400);
+  fd = mkstemp(tmp_filename);
   if (fd < 0) {
+    err = errno;
+    goto cleanup;
+  }
+  if (fchmod(fd, 0400)) {
     err = errno;
     goto cleanup;
   }
