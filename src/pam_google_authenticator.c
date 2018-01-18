@@ -1873,7 +1873,7 @@ static int google_authenticator(pam_handle_t *pamh,
   }
 
 out:
-  if (params->debug) {
+  if (params.debug) {
     log_message(LOG_INFO, pamh,
                 "debug: end of google_authenticator for \"%s\". Result: %s",
                 username, pam_strerror(pamh, rc));
