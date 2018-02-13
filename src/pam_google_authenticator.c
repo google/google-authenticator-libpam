@@ -459,6 +459,12 @@ static char *read_file_contents(pam_handle_t *pamh,
                                 const Params *params,
                                 const char *secret_filename, int *fd,
                                 off_t filesize) {
+  // Arbitrary limit to prevent integer overflow.
+  if (filesize > 1000000) {
+    errno = E2BIG;
+    return NULL;
+  }
+
   // Read file contents
   char *buf = malloc(filesize + 1);
   if (!buf ||
@@ -635,6 +641,12 @@ static uint8_t *get_shared_secret(pam_handle_t *pamh,
   }
   // Decode secret key
   const int base32Len = strcspn(buf, "\n");
+
+  // Arbitrary limit to prevent integer overflow.
+  if (base32Len > 100000) {
+    return NULL;
+  }
+
   *secretLen = (base32Len*5 + 7)/8;
   uint8_t *secret = malloc(base32Len + 1);
   if (secret == NULL) {
