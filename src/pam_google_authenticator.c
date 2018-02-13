@@ -557,6 +557,9 @@ static int write_file_contents(pam_handle_t *pamh,
   // Make sure the secret file is still the same. This prevents attackers
   // from opening a lot of pending sessions and then reusing the same
   // scratch code multiple times.
+  //
+  // (except for the brief race condition between this stat and the
+  // `rename` below)
   {
     struct stat sb;
     if (stat(secret_filename, &sb) != 0) {
@@ -593,7 +596,7 @@ static int write_file_contents(pam_handle_t *pamh,
     goto cleanup;
   }
   free(tmp_filename);
-  tmp_filename = NULL; // Prevent unlink.
+  tmp_filename = NULL; // Prevent unlink & double-free.
 
   if (params->debug) {
     log_message(LOG_INFO, pamh, "debug: \"%s\" written", secret_filename);
@@ -604,7 +607,10 @@ cleanup:
     close(fd);
   }
   if (tmp_filename) {
-    unlink(tmp_filename);
+    if (unlink(tmp_filename)) {
+      log_message(LOG_ERR, pamh, "Failed to delete tempfile \"%s\": %s",
+                  tmp_filename, strerror(errno));
+    }
   }
   free(tmp_filename);
 
@@ -616,6 +622,10 @@ cleanup:
   return 0;
 }
 
+// given secret file content (buf), extract the secret and base32 decode it.
+//
+// Return pointer to `malloc()`'d secret on success (caller frees),
+// NULL on error. Length of secret stored in *secretLen.
 static uint8_t *get_shared_secret(pam_handle_t *pamh,
                                   const Params *params,
                                   const char *secret_filename,
