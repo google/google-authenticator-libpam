@@ -455,6 +455,8 @@ static int open_secret_file(pam_handle_t *pamh, const char *secret_filename,
   return fd;
 }
 
+// Read secret file contents.
+// If there's an error the file is closed, NULL is returned, and errno set.
 static char *read_file_contents(pam_handle_t *pamh,
                                 const Params *params,
                                 const char *secret_filename, int *fd,
@@ -467,17 +469,14 @@ static char *read_file_contents(pam_handle_t *pamh,
 
   // Read file contents
   char *buf = malloc(filesize + 1);
-  if (!buf ||
-      read(*fd, buf, filesize) != filesize) {
-    close(*fd);
-    *fd = -1;
+  if (!buf) {
+    log_message(LOG_ERR, pamh, "Failed to malloc %d+1", filesize);
+    goto out;
+  }
+
+  if (filesize != read(*fd, buf, filesize)) {
     log_message(LOG_ERR, pamh, "Could not read \"%s\"", secret_filename);
- error:
-    if (buf) {
-      explicit_bzero(buf, filesize);
-      free(buf);
-    }
-    return NULL;
+    goto out;
   }
   close(*fd);
   *fd = -1;
@@ -486,7 +485,7 @@ static char *read_file_contents(pam_handle_t *pamh,
   if (memchr(buf, 0, filesize)) {
     log_message(LOG_ERR, pamh, "Invalid file contents in \"%s\"",
                 secret_filename);
-    goto error;
+    goto out;
   }
 
   // Terminate the buffer with a NUL byte.
@@ -496,6 +495,18 @@ static char *read_file_contents(pam_handle_t *pamh,
     log_message(LOG_INFO, pamh, "debug: \"%s\" read", secret_filename);
   }
   return buf;
+
+out:
+  // If we have any data, erase it.
+  if (buf) {
+    explicit_bzero(buf, filesize);
+  }
+  free(buf);
+  if (*fd >= 0) {
+    close(*fd);
+    *fd = -1;
+  }
+  return NULL;
 }
 
 static int is_totp(const char *buf) {
