@@ -44,6 +44,7 @@ libpam_google_authenticator_testing_la_LDFLAGS = $(AM_LDFLAGS) $(MODULES_LDFLAGS
 tests_pam_google_authenticator_unittest_SOURCES = \
 	tests/pam_google_authenticator_unittest.c \
 	$(CORE_SRC)
+tests_pam_google_authenticator_unittest_LDADD   = -lpam
 tests_pam_google_authenticator_unittest_LDFLAGS = $(AM_LDFLAGS) -export-dynamic
 
 test: check
@@ -53,6 +54,7 @@ examples_demo_SOURCES = \
 	src/pam_google_authenticator.c \
 	$(CORE_SRC) \
 	examples/demo.c
+examples_demo_LDADD  = -lpam
 examples_demo_CFLAGS = $(AM_CFLAGS) -DDEMO=1
 
 
