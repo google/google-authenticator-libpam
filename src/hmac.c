@@ -74,6 +74,7 @@ void hmac_sha1(const uint8_t *key, int keyLength,
   memcpy(result, sha, resultLength);
 
   // Zero out all internal data structures
+  explicit_bzero(&ctx, sizeof(ctx));
   explicit_bzero(hashed_key, sizeof(hashed_key));
   explicit_bzero(sha, sizeof(sha));
   explicit_bzero(tmp_key, sizeof(tmp_key));
