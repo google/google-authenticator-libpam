@@ -21,7 +21,7 @@ If the system supports the `libqrencode` library, a QRCode will be shown, that
 can be scanned using the Android Google Authenticator application. If the
 system does not have this library, google-authenticator(1) outputs an URL that
 can be followed using a web browser. Alternatively, the alphanumeric secret key
-is also outputed and thus can be manually entered into the Android Google
+is also outputted and thus can be manually entered into the Android Google
 Authenticator application.
 
 In either case, after the key has been added, the verification value should be
