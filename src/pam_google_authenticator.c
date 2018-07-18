@@ -564,6 +564,12 @@ static int write_file_contents(pam_handle_t *pamh,
   fd = mkstemp(tmp_filename);
   if (fd < 0) {
     err = errno;
+    log_message(LOG_ERR, pamh, "Failed to create tempfile \"%s\": %s",
+                tmp_filename, strerror(err));
+
+    // Couldn't open file; don't try to delete it later.
+    free(tmp_filename);
+    tmp_filename = NULL;
     goto cleanup;
   }
   if (fchmod(fd, 0400)) {
