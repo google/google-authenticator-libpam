@@ -38,6 +38,7 @@ pam_google_authenticator_la_LDFLAGS = $(AM_LDFLAGS) $(MODULES_LDFLAGS) -export-s
 check_PROGRAMS    = examples/demo tests/pam_google_authenticator_unittest
 check_LTLIBRARIES = libpam_google_authenticator_testing.la
 TESTS             = tests/pam_google_authenticator_unittest tests/base32_test.sh
+EXTRA_DIST        = tests/base32_test.sh
 
 libpam_google_authenticator_testing_la_SOURCES = \
 	src/pam_google_authenticator.c \
