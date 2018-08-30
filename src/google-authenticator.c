@@ -740,9 +740,15 @@ int main(int argc, char *argv[]) {
     use_totp = mode == TOTP_MODE;
   }
   if (!quiet) {
+    const int tm = 1;
     displayEnrollInfo(secret, label, use_totp, issuer);
     printf("Your new secret key is: %s\n", secret);
-    printf("Your verification code is %06d\n", generateCode(secret, 0));
+    if (use_totp) {
+      // TODO
+    } else {
+      printf("Your verification code for code %d is %06d\n",
+             tm, generateCode(secret, tm));
+    }
     printf("Your emergency scratch codes are:\n");
   }
   free(label);
