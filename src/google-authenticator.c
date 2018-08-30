@@ -345,6 +345,26 @@ static void displayEnrollInfo(const char *secret, const char *label,
   free(encoderURL);
 }
 
+// ask for a code. Return code, or some garbage if no number given. That's fine
+// because bad data also won't match code.
+static int ask_code(const char* msg) {
+  char line[128];
+  printf("%s ", msg);
+  fflush(stdout);
+
+  line[sizeof(line)-1] = 0;
+  if (NULL == fgets(line, sizeof line, stdin)) {
+    if (errno == 0) {
+      printf("\n");
+    } else {
+      perror("getline()");
+    }
+    exit(1);
+  }
+
+  return strtol(line, NULL, 10);
+}
+
 // ask y/n, and return 0 for no, 1 for yes.
 static int maybe(const char *msg) {
   printf("\n");
@@ -740,12 +760,26 @@ int main(int argc, char *argv[]) {
     use_totp = mode == TOTP_MODE;
   }
   if (!quiet) {
-    const int tm = 1;
     displayEnrollInfo(secret, label, use_totp, issuer);
     printf("Your new secret key is: %s\n", secret);
     if (use_totp) {
-      // TODO
+      for (;;) {
+        const int test_code = ask_code("Enter code from app (-1 to skip):");
+        if (test_code < 0) {
+          printf("Code confirmation skipped\n");
+          break;
+        }
+        const unsigned long tm = time(NULL)/(step_size ? step_size : 30);
+        const int correct_code = generateCode(secret, tm);
+        if (test_code == correct_code) {
+          printf("Code confirmed\n");
+          break;
+        }
+        printf("Code incorrect (correct code %06d). Try again.\n",
+               correct_code);
+      }
     } else {
+      const unsigned long tm = 1;
       printf("Your verification code for code %d is %06d\n",
              tm, generateCode(secret, tm));
     }
