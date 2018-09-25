@@ -77,6 +77,8 @@ typedef struct Params {
 static char oom;
 
 static const char* nobody = "nobody";
+static const uid_t invalid_uid = -1;
+static const gid_t invalid_gid = -1;
 
 #if defined(DEMO) || defined(TESTING)
 static char* error_msg = NULL;
@@ -287,11 +289,13 @@ errout:
   return NULL;
 }
 
-static int setuser(int uid) {
+// sets user ID and gives old user ID.
+// returns 0 on success.
+static int setuser(uid_t uid, uid_t *old) {
 #ifdef HAVE_SETFSUID
   // The semantics for setfsuid() are a little unusual. On success, the
   // previous user id is returned. On failure, the current user id is returned.
-  int old_uid = setfsuid(uid);
+  const uid_t old_uid = setfsuid(uid);
   if (uid != setfsuid(uid)) {
     setfsuid(old_uid);
     return -1;
@@ -300,31 +304,35 @@ static int setuser(int uid) {
 #ifdef linux
 #error "Linux should have setfsuid(). Refusing to build."
 #endif
-  int old_uid = geteuid();
+  const uid_t old_uid = geteuid();
   if (old_uid != uid && seteuid(uid)) {
     return -1;
   }
 #endif
-  return old_uid;
+  *old = old_uid;
+  return 0;
 }
 
-static int setgroup(int gid) {
+// sets group ID and gives old group ID.
+// return 0 on success.
+static int setgroup(int gid, gid_t* old) {
 #ifdef HAS_SETFSUID
   // The semantics of setfsgid() are a little unusual. On success, the
   // previous group id is returned. On failure, the current groupd id is
   // returned.
-  int old_gid = setfsgid(gid);
+  const gid_t old_gid = setfsgid(gid);
   if (gid != setfsgid(gid)) {
     setfsgid(old_gid);
     return -1;
   }
 #else
-  int old_gid = getegid();
+  const gid_t old_gid = getegid();
   if (old_gid != gid && setegid(gid)) {
     return -1;
   }
 #endif
-  return old_gid;
+  *old = old_gid;
+  return 0;
 }
 
 // Drop privileges and return 0 on success.
@@ -356,11 +364,16 @@ static int drop_privileges(pam_handle_t *pamh, const char *username, int uid,
   gid_t gid = pw->pw_gid;
   free(buf);
 
-  int gid_o = setgroup(gid);
-  int uid_o = setuser(uid);
-  if (uid_o < 0) {
-    if (gid_o >= 0) {
-      if (setgroup(gid_o) < 0 || setgroup(gid_o) != gid_o) {
+  gid_t gid_o = invalid_gid;
+  const int gfail = setgroup(gid, &gid_o);
+
+  uid_t uid_o = invalid_uid;
+  if (setuser(uid, &uid_o)) {
+    // If setuser() failed, then we won't be continuing. But try to set group
+    // back first.
+    if (!gfail) {
+      gid_t gid_n = invalid_gid;
+      if (setgroup(gid_o, &gid_n) || (gid_n != gid_o)) {
         // Inform the caller that we were unsuccessful in resetting the group.
         *old_gid = gid_o;
       }
@@ -369,20 +382,25 @@ static int drop_privileges(pam_handle_t *pamh, const char *username, int uid,
                 username);
     return -1;
   }
-  if (gid_o < 0 && (gid_o = setgroup(gid)) < 0) {
+
+  if (gfail) {
     // In most typical use cases, the PAM module will end up being called
     // while uid=0. This allows the module to change to an arbitrary group
     // prior to changing the uid. But there are many ways that PAM modules
     // can be invoked and in some scenarios this might not work. So, we also
     // try changing the group _after_ changing the uid. It might just work.
-    if (setuser(uid_o) < 0 || setuser(uid_o) != uid_o) {
-      // Inform the caller that we were unsuccessful in resetting the uid.
-      *old_uid = uid_o;
+    if (setgroup(gid, &gid_o)) {
+      // If setting group doesn't work, that's a fail. Try to set back the user.
+      uid_t uid_n = invalid_uid;
+      if (setuser(uid_o, &uid_n) || (uid_n != uid_o)) {
+        // Inform the caller that we were unsuccessful in resetting the uid.
+        *old_uid = uid_o;
+      }
+      log_message(LOG_ERR, pamh,
+                  "Failed to change group id for user \"%s\" to %d", username,
+                  (int)gid);
+      return -1;
     }
-    log_message(LOG_ERR, pamh,
-                "Failed to change group id for user \"%s\" to %d", username,
-                (int)gid);
-    return -1;
   }
 
   *old_uid = uid_o;
@@ -1628,7 +1646,10 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
 static int google_authenticator(pam_handle_t *pamh,
                                 int argc, const char **argv) {
   int        rc = PAM_AUTH_ERR;
-  int        uid = -1, old_uid = -1, old_gid = -1, fd = -1;
+  uid_t uid = invalid_uid;
+  uid_t old_uid = invalid_uid;
+  uid_t old_gid = invalid_gid;
+  int fd = -1;
   char       *buf = NULL;
   struct stat orig_stat = { 0 };
   uint8_t    *secret = NULL;
@@ -1920,13 +1941,17 @@ out:
   if (fd >= 0) {
     close(fd);
   }
-  if (old_gid >= 0) {
-    if (setgroup(old_gid) >= 0 && setgroup(old_gid) == old_gid) {
-      old_gid = -1;
+  if (old_gid != invalid_gid) {
+    gid_t gid_n = invalid_gid;
+    if (!setgroup(old_gid, &gid_n) && (gid_n == old_gid)) {
+      old_gid = invalid_gid;
     }
   }
-  if (old_uid >= 0) {
-    if (setuser(old_uid) < 0 || setuser(old_uid) != old_uid) {
+  if (old_uid != invalid_uid) {
+    uid_t uid_n = invalid_uid;
+    if (!setuser(old_uid, &uid_n) && (uid_n == old_uid)) {
+      old_uid = invalid_uid;
+    } else {
       log_message(LOG_EMERG, pamh, "We switched users from %d to %d, "
                   "but can't switch back", old_uid, uid);
     }
