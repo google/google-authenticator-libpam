@@ -19,8 +19,8 @@
 #include "config.h"
 
 #include <assert.h>
-#include <errno.h>
 #include <dlfcn.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <pwd.h>
@@ -29,6 +29,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "base32.h"
@@ -946,3 +947,9 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
+/* ---- Emacs Variables ----
+ * Local Variables:
+ * c-basic-offset: 2
+ * indent-tabs-mode: nil
+ * End:
+ */
