@@ -417,6 +417,7 @@ static void usage(void) {
  "google-authenticator [<options>]\n"
  " -h, --help                     Print this message\n"
  " -c, --counter-based            Set up counter-based (HOTP) verification\n"
+ " -C, --no-confirm               Don't confirm code. For non-interactive setups\n"
  " -t, --time-based               Set up time-based (TOTP) verification\n"
  " -d, --disallow-reuse           Disallow reuse of previously used TOTP tokens\n"
  " -D, --allow-reuse              Allow reuse of previously used TOTP tokens\n"
@@ -461,14 +462,16 @@ int main(int argc, char *argv[]) {
   char *label = NULL;
   char *issuer = NULL;
   int step_size = 0;
+  int confirm = 1;
   int window_size = 0;
   int emergency_codes = -1;
   int idx;
   for (;;) {
-    static const char optstring[] = "+hctdDfl:i:qQ:r:R:us:S:w:We:";
+    static const char optstring[] = "+hcCtdDfl:i:qQ:r:R:us:S:w:We:";
     static struct option options[] = {
       { "help",             0, 0, 'h' },
       { "counter-based",    0, 0, 'c' },
+      { "no-confirm",       0, 0, 'C' },
       { "time-based",       0, 0, 't' },
       { "disallow-reuse",   0, 0, 'd' },
       { "allow-reuse",      0, 0, 'D' },
@@ -509,7 +512,7 @@ int main(int argc, char *argv[]) {
       }
       exit(0);
     } else if (!idx--) {
-      // counter-based
+      // counter-based, -c
       if (mode != ASK_MODE) {
         fprintf(stderr, "Duplicate -c and/or -t option detected\n");
         _exit(1);
@@ -521,6 +524,9 @@ int main(int argc, char *argv[]) {
         _exit(1);
       }
       mode = HOTP_MODE;
+    } else if (!idx--) {
+      // don't confirm code provisioned, -C
+      confirm = 0;
     } else if (!idx--) {
       // time-based
       if (mode != ASK_MODE) {
@@ -762,7 +768,9 @@ int main(int argc, char *argv[]) {
   if (!quiet) {
     displayEnrollInfo(secret, label, use_totp, issuer);
     printf("Your new secret key is: %s\n", secret);
-    if (use_totp) {
+
+    // Confirm code.
+    if (confirm && use_totp) {
       for (;;) {
         const int test_code = ask_code("Enter code from app (-1 to skip):");
         if (test_code < 0) {
