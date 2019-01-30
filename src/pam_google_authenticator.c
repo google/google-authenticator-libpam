@@ -1788,7 +1788,7 @@ static int google_authenticator(pam_handle_t *pamh,
       const int code = (int)l;
       memset(pw + pw_len - expected_len, 0, expected_len);
 
-      if ((mode == 2 || mode == 3) && !params.forward_pass) {
+      if (!params.forward_pass) {
         // We are explicitly configured so that we don't try to share
         // the password with any other stacked PAM module. We must
         // therefore verify that the user entered just the verification
