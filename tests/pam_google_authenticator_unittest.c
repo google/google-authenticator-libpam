@@ -93,6 +93,11 @@ int pam_get_item(const pam_handle_t *pamh, int item_type,
       *item = p_conv;
       return PAM_SUCCESS;
     }
+    case PAM_RHOST: {
+        static const char *rhost = "::1";
+        *item = rhost;
+        return PAM_SUCCESS;
+    }
     case PAM_AUTHTOK: {
       static char *authtok = NULL;
       if (conv_mode == COMBINED_PASSWORD) {
