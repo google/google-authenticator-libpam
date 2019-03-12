@@ -1555,7 +1555,7 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
   int len = strlen(rhost) + 100;
   char *value = calloc(len, 1);
 
-  snprintf(value, len - 1, "%s %u", rhost, now);
+  snprintf(value, len - 1, "%s %lu", rhost, (unsigned long)now);
   set_cfg_value(pamh, name, value, buf);
   free(value);
 
@@ -1816,7 +1816,7 @@ static int google_authenticator(pam_handle_t *pamh,
    * within the grace period.  If it did, then allow login wihtout 
    * an additional code.
    */
-  if (within_grace_period(pamh, &params, &buf)) {
+  if (buf && within_grace_period(pamh, &params, &buf)) {
     rc = PAM_SUCCESS;
     log_message(LOG_INFO, pamh, "within grace period: google_authenticator for %s", username);
     goto out;
