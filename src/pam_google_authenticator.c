@@ -72,6 +72,7 @@ typedef struct Params {
   int        debug;
   int        no_strict_owner;
   int        allowed_perm;
+  time_t     grace_period;
 } Params;
 
 static char oom;
@@ -159,6 +160,25 @@ static const char *get_user_name(pam_handle_t *pamh, const Params *params) {
     log_message(LOG_INFO, pamh, "debug: start of google_authenticator for \"%s\"", username);
   }
   return username;
+}
+
+/*
+ * Return rhost as a string.  Return value must not be free()ed.
+ * Returns NULL if PAM_RHOST is not known.
+ */
+static const char *
+get_rhost(pam_handle_t *pamh, const Params *params) {
+  // Get the remote host
+  PAM_CONST void *rhost;
+  if (pam_get_item(pamh, PAM_RHOST, &rhost) != PAM_SUCCESS) {
+    log_message(LOG_ERR, pamh, "pam_get_rhost() failed to get the remote host");
+    return NULL;
+  }
+  if (params->debug) {
+    log_message(LOG_INFO, pamh, "debug: google_authenticator for host \"%s\"",
+                rhost);
+  }
+  return (const char *)rhost;
 }
 
 static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
@@ -1493,6 +1513,108 @@ static int check_timebased_code(pam_handle_t *pamh, const char*secret_filename,
   return 1;
 }
 
+/* 
+ * Add a 'config' variable that says we logged in from a particular place
+ * at a particular time.  Only remembers the last 10 logins.
+ *
+ * Returns 0 on success.
+ */
+int
+update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
+  const char *rhost = get_rhost(pamh, params);
+  const time_t now = get_time();
+  time_t oldest = now;
+  int oldest_index = 0;
+  int i;
+  char *line;
+  time_t when;
+  char name[] = "LAST ";
+
+  if (rhost == NULL)
+    return -1;
+
+  for (i = 0; i < 10; i++) {
+    char *p;
+    name[4] = i + '0';
+    line = get_cfg_value(pamh, name, *buf);
+    if (line == &oom) {
+      /* Fatal! */
+      return -1;
+    }
+    if (!line) {
+      /* force use of an empty line */
+      oldest_index = i;
+      oldest = 0;
+      continue;
+    }
+    if (strstr(line, rhost)) {
+        break;
+    }
+    p = strstr(line, " ");
+    when = strtoul(p, NULL, 10);
+    if (when < oldest) {
+      oldest_index = i;
+      oldest = when;
+    }
+    free(line);
+  }
+  if (i == 10) {
+    name[4] = oldest_index + '0';
+  } else {
+    free(line);
+  }
+
+  int len = strlen(rhost) + 100;
+  char *value = calloc(len, 1);
+
+  snprintf(value, len - 1, "%s %lu", rhost, (unsigned long)now);
+  set_cfg_value(pamh, name, value, buf);
+  free(value);
+
+  return 0;
+}
+
+/*
+ * Return non-zero if the last login from the same host as this one was 
+ * successfully authenticated within the grace period.
+ */
+int
+within_grace_period(pam_handle_t *pamh, const Params *params, char **buf) {
+  const char *rhost = get_rhost(pamh, params);
+  const time_t now = get_time();
+  const time_t grace = params->grace_period;
+  int i;
+  char *line;
+  char name[] = "LAST ";
+  char *p;
+  time_t when;
+
+  for (i = 0; i < 10; i++) {
+    char *p;
+    name[4] = i + '0';
+    line = get_cfg_value(pamh, name, *buf);
+    if (line == &oom) {
+      /* Fatal! */
+      return 0;
+    }
+    if (!line)
+      continue;
+    if (strstr(line, rhost)) {
+      break;
+    }
+    free(line);
+  }
+  if (i == 10)
+    return 0;
+
+  p = strstr(line, " ");
+  when = strtoul(p, NULL, 10);
+
+  return (when + grace > now);
+}
+
+ 
+    
 /* Checks for counter based verification code. Returns -1 on error, 0 on
  * success, and 1, if no counter based code had been entered, and subsequent
  * tests should be applied.
@@ -1617,6 +1739,17 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
     } else if (!strcmp(argv[i], "echo-verification-code") ||
                !strcmp(argv[i], "echo_verification_code")) {
       params->echocode = PAM_PROMPT_ECHO_ON;
+    } else if (!strncmp(argv[i], "grace_period=", 13)) {
+      char *remainder = NULL;
+      const time_t grace = (time_t)strtol(argv[i] + 13, &remainder, 10);
+      if (grace < 0 || (remainder && *remainder)) {
+        log_message(LOG_ERR, pamh,
+                    "Invalid  in setting \"%s\"."
+                    "grace_period must be a positive number of seconds.",
+                    argv[i]);
+        return -1;
+      }
+      params->grace_period = grace;
     } else {
       log_message(LOG_ERR, pamh, "Unrecognized option \"%s\"", argv[i]);
       return -1;
@@ -1688,6 +1821,19 @@ static int google_authenticator(pam_handle_t *pamh,
   }
 
   const long hotp_counter = get_hotp_counter(pamh, buf);
+
+  /*
+   * Check to see if a successful login from the same host happened 
+   * within the grace period.  If it did, then allow login wihtout 
+   * an additional code.
+   */
+  if (buf && within_grace_period(pamh, &params, &buf)) {
+    rc = PAM_SUCCESS;
+    log_message(LOG_INFO, pamh, "within grace period: google_authenticator for %s", username);
+    goto out;
+  }
+    
+    
 
   // Only if nullok and we do not have a code will we NOT ask for a code.
   // In all other cases (i.e "have code" and "no nullok and no code") we DO ask for a code.
@@ -1871,9 +2017,13 @@ static int google_authenticator(pam_handle_t *pamh,
       updated = 1;
     }
 
+
     // Display a success or error message
     if (rc == PAM_SUCCESS) {
       log_message(LOG_INFO , pamh, "Accepted google_authenticator for %s", username);
+      if (params.grace_period != 0) {
+        update_logindetails(pamh, &params, &buf);
+      }
     } else {
       log_message(LOG_ERR, pamh, "Invalid verification code for %s", username);
     }
