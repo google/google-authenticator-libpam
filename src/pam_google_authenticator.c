@@ -1515,7 +1515,8 @@ static int check_timebased_code(pam_handle_t *pamh, const char*secret_filename,
 
 /* 
  * Add a 'config' variable that says we logged in from a particular place
- * at a particular time.  Only remembers the last 10 logins.
+ * at a particular time.  Only remembers the last 10 logins, which 
+ * are replaced in LRU order.
  *
  * Returns 0 on success.
  */
@@ -1527,41 +1528,54 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
   int oldest_index = 0;
   int i;
   char *line;
-  time_t when;
+  unsigned long when;
   char name[] = "LAST ";
+  char *host;
 
-  if (rhost == NULL)
+  if (rhost == NULL) {
     return -1;
+  }
 
   for (i = 0; i < 10; i++) {
-    char *p;
     name[4] = i + '0';
     line = get_cfg_value(pamh, name, *buf);
     if (line == &oom) {
       /* Fatal! */
       return -1;
     }
+
     if (!line) {
-      /* force use of an empty line */
-      oldest_index = i;
-      oldest = 0;
+      /* Make first empty line the oldest */
+      if (oldest) {
+        oldest_index = i;
+        oldest = 0;
+      }
       continue;
     }
-    if (strstr(line, rhost)) {
-        break;
+
+    if (sscanf(line, " %m[0-9a-fA-F:.] %lu ", &host, &when) != 2) {
+      log_message(LOG_ERR, pamh, "Malformed LAST%d line\n", i);
+      continue;
     }
-    p = strstr(line, " ");
-    when = strtoul(p, NULL, 10);
+
+    if (!strcmp(host, rhost)) {
+      break;
+    }
+        
     if (when < oldest) {
       oldest_index = i;
       oldest = when;
     }
+
     free(line);
+    free(host);
   }
+
   if (i == 10) {
     name[4] = oldest_index + '0';
   } else {
     free(line);
+    free(host);
   }
 
   int len = strlen(rhost) + 100;
@@ -1569,6 +1583,7 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
 
   snprintf(value, len - 1, "%s %lu", rhost, (unsigned long)now);
   set_cfg_value(pamh, name, value, buf);
+
   free(value);
 
   return 0;
@@ -1587,7 +1602,13 @@ within_grace_period(pam_handle_t *pamh, const Params *params, char **buf) {
   char *line;
   char name[] = "LAST ";
   char *p;
-  time_t when;
+  unsigned long when;
+  char match[128];
+
+  if (rhost == NULL) {
+    return 0;
+  }
+  snprintf(match, sizeof match - 1, " %s %%lu ", rhost);
 
   for (i = 0; i < 10; i++) {
     char *p;
@@ -1599,16 +1620,12 @@ within_grace_period(pam_handle_t *pamh, const Params *params, char **buf) {
     }
     if (!line)
       continue;
-    if (strstr(line, rhost)) {
+    if (sscanf(line, match, &when) == 1)
       break;
-    }
     free(line);
   }
   if (i == 10)
     return 0;
-
-  p = strstr(line, " ");
-  when = strtoul(p, NULL, 10);
 
   return (when + grace > now);
 }
