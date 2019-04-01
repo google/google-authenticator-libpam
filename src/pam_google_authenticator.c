@@ -1525,18 +1525,21 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
   const char *rhost = get_rhost(pamh, params);
   const time_t now = get_time();
   time_t oldest = now;
-  int oldest_index = 0;
-  int i;
+  int oldest_index = -1;
+  unsigned long when = 0;
+  int  found = 0;
   char *line;
-  unsigned long when;
   char name[] = "LAST ";
-  char *host;
 
   if (rhost == NULL) {
     return -1;
   }
 
-  for (i = 0; i < 10; i++) {
+  for (int i = 0; i < 10; i++) {
+    char host[40]; /* Max len of ipv6 address is 8*4 digits plus 7 colons.
+                    * Plus trailing NUL is 40
+                    */
+
     name[4] = i + '0';
     line = get_cfg_value(pamh, name, *buf);
     if (line == &oom) {
@@ -1553,12 +1556,13 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
       continue;
     }
 
-    if (sscanf(line, " %m[0-9a-fA-F:.] %lu ", &host, &when) != 2) {
-      log_message(LOG_ERR, pamh, "Malformed LAST%d line\n", i);
+    if (sscanf(line, " %40[0-9a-fA-F:.] %lu ", host, &when) != 2) {
+      log_message(LOG_ERR, pamh, "Malformed LAST%d line", i);
       continue;
     }
 
     if (!strcmp(host, rhost)) {
+      found = 1;
       break;
     }
         
@@ -1568,23 +1572,25 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
     }
 
     free(line);
-    free(host);
   }
 
-  if (i == 10) {
+  if (!found) {
+    /* Loop completed all ten iterations */
     name[4] = oldest_index + '0';
   } else {
     free(line);
-    free(host);
   }
 
-  int len = strlen(rhost) + 100;
-  char *value = calloc(len, 1);
+  /* 
+   * Max length in decimal digits of a 64 bit number is (64 log 2) + 1 
+   * Plus space and NUL termination, is 23.
+   * Max len of ipv6 address is 39.
+   */
+  char value[64];
+  memset(value, 0, sizeof value);
 
-  snprintf(value, len - 1, "%s %lu", rhost, (unsigned long)now);
+  snprintf(value, sizeof value, "%s %lu", rhost, (unsigned long)now);
   set_cfg_value(pamh, name, value, buf);
-
-  free(value);
 
   return 0;
 }
@@ -1594,26 +1600,25 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
  * successfully authenticated within the grace period.
  */
 int
-within_grace_period(pam_handle_t *pamh, const Params *params, char **buf) {
+within_grace_period(pam_handle_t *pamh, const Params *params, char *buf) {
   const char *rhost = get_rhost(pamh, params);
   const time_t now = get_time();
   const time_t grace = params->grace_period;
-  int i;
-  char *line;
-  char name[] = "LAST ";
-  char *p;
-  unsigned long when;
+  unsigned long when = 0;
   char match[128];
+  char *line;
 
   if (rhost == NULL) {
     return 0;
   }
   snprintf(match, sizeof match - 1, " %s %%lu ", rhost);
 
-  for (i = 0; i < 10; i++) {
-    char *p;
+  for (int i = 0; i < 10; i++) {
+    static char name[] = "LAST0";
+
     name[4] = i + '0';
-    line = get_cfg_value(pamh, name, *buf);
+    line = get_cfg_value(pamh, name, buf);
+
     if (line == &oom) {
       /* Fatal! */
       return 0;
@@ -1624,9 +1629,13 @@ within_grace_period(pam_handle_t *pamh, const Params *params, char **buf) {
       break;
     free(line);
   }
-  if (i == 10)
-    return 0;
 
+  if (when == 0) {
+    /* No match */
+    return 0;
+  }
+
+  free(line);
   return (when + grace > now);
 }
 
@@ -1844,7 +1853,7 @@ static int google_authenticator(pam_handle_t *pamh,
    * within the grace period.  If it did, then allow login wihtout 
    * an additional code.
    */
-  if (buf && within_grace_period(pamh, &params, &buf)) {
+  if (buf && within_grace_period(pamh, &params, buf)) {
     rc = PAM_SUCCESS;
     log_message(LOG_INFO, pamh, "within grace period: google_authenticator for %s", username);
     goto out;
