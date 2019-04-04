@@ -1556,7 +1556,7 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
       continue;
     }
 
-    if (sscanf(line, " %40[0-9a-fA-F:.] %lu ", host, &when) != 2) {
+    if (sscanf(line, " %39[0-9a-fA-F:.] %lu ", host, &when) != 2) {
       log_message(LOG_ERR, pamh, "Malformed LAST%d line", i);
       continue;
     }
@@ -1600,7 +1600,8 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
  * successfully authenticated within the grace period.
  */
 int
-within_grace_period(pam_handle_t *pamh, const Params *params, char *buf) {
+within_grace_period(pam_handle_t *pamh, const Params *params,
+                    const char *buf) {
   const char *rhost = get_rhost(pamh, params);
   const time_t now = get_time();
   const time_t grace = params->grace_period;
@@ -1611,7 +1612,7 @@ within_grace_period(pam_handle_t *pamh, const Params *params, char *buf) {
   if (rhost == NULL) {
     return 0;
   }
-  snprintf(match, sizeof match - 1, " %s %%lu ", rhost);
+  snprintf(match, sizeof match, " %s %%lu ", rhost);
 
   for (int i = 0; i < 10; i++) {
     static char name[] = "LAST0";
