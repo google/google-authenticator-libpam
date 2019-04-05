@@ -163,7 +163,7 @@ static const char *get_user_name(pam_handle_t *pamh, const Params *params) {
 }
 
 /*
- * Return rhost as a string.  Return value must not be free()ed.
+ * Return rhost as a string. Return value must not be free()ed.
  * Returns NULL if PAM_RHOST is not known.
  */
 static const char *
@@ -1514,9 +1514,9 @@ static int check_timebased_code(pam_handle_t *pamh, const char*secret_filename,
   return 1;
 }
 
-/* 
+/*
  * Add a 'config' variable that says we logged in from a particular place
- * at a particular time.  Only remembers the last 10 logins, which 
+ * at a particular time. Only remembers the last 10 logins, which
  * are replaced in LRU order.
  *
  * Returns 0 on success.
@@ -1525,24 +1525,21 @@ int
 update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
   const char *rhost = get_rhost(pamh, params);
   const time_t now = get_time();
-  time_t oldest = now;
-  int oldest_index = -1;
-  unsigned long when = 0;
-  int  found = 0;
-  char *line;
-  char name[] = "LAST ";
+  time_t oldest = now;    // Oldest entry seen so far.
+  int oldest_index = -1;  // Index of oldest entry, due for replacement.
+  int found = 0;          // Entry for this rhost found.
+  char name[] = "LAST ";  // Config name template.
 
   if (rhost == NULL) {
     return -1;
   }
 
   for (int i = 0; i < 10; i++) {
-    char host[40]; /* Max len of ipv6 address is 8*4 digits plus 7 colons.
-                    * Plus trailing NUL is 40
-                    */
-
+    //
+    // Get LAST<n> cfg value.
+    //
     name[4] = i + '0';
-    line = get_cfg_value(pamh, name, *buf);
+    char *line = get_cfg_value(pamh, name, *buf);
     if (line == &oom) {
       /* Fatal! */
       return -1;
@@ -1557,7 +1554,16 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
       continue;
     }
 
-    if (sscanf(line, " %39[0-9a-fA-F:.] %lu ", host, &when) != 2) {
+    //
+    // Parse value.
+    //
+    char host[40]; /* Max len of ipv6 address is 8*4 digits plus 7 colons.
+                    * Plus trailing NUL is 40 */
+    unsigned long when = 0; // Timestamp of current entry.
+    const int scanf_rc = sscanf(line, " %39[0-9a-fA-F:.] %lu ", host, &when);
+    free(line);
+
+    if (scanf_rc != 2) {
       log_message(LOG_ERR, pamh, "Malformed LAST%d line", i);
       continue;
     }
@@ -1566,26 +1572,22 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
       found = 1;
       break;
     }
-        
+
     if (when < oldest) {
       oldest_index = i;
       oldest = when;
     }
-
-    free(line);
   }
 
   if (!found) {
     /* Loop completed all ten iterations */
     name[4] = oldest_index + '0';
-  } else {
-    free(line);
   }
 
-  /* 
-   * Max length in decimal digits of a 64 bit number is (64 log 2) + 1 
+  /*
+   * Max length in decimal digits of a 64 bit number is (64 log 2) + 1
    * Plus space and NUL termination, is 23.
-   * Max len of ipv6 address is 39.
+   * Max len of IPv6 address is 39.
    */
   char value[64];
   memset(value, 0, sizeof value);
@@ -1597,7 +1599,7 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
 }
 
 /*
- * Return non-zero if the last login from the same host as this one was 
+ * Return non-zero if the last login from the same host as this one was
  * successfully authenticated within the grace period.
  */
 int
@@ -1608,7 +1610,6 @@ within_grace_period(pam_handle_t *pamh, const Params *params,
   const time_t grace = params->grace_period;
   unsigned long when = 0;
   char match[128];
-  char *line;
 
   if (rhost == NULL) {
     return 0;
@@ -1617,18 +1618,20 @@ within_grace_period(pam_handle_t *pamh, const Params *params,
 
   for (int i = 0; i < 10; i++) {
     static char name[] = "LAST0";
-
     name[4] = i + '0';
-    line = get_cfg_value(pamh, name, buf);
+    char* line = get_cfg_value(pamh, name, buf);
 
     if (line == &oom) {
       /* Fatal! */
       return 0;
     }
-    if (!line)
+    if (!line) {
       continue;
-    if (sscanf(line, match, &when) == 1)
+    }
+    if (sscanf(line, match, &when) == 1) {
+      free(line);
       break;
+    }
     free(line);
   }
 
@@ -1637,12 +1640,9 @@ within_grace_period(pam_handle_t *pamh, const Params *params,
     return 0;
   }
 
-  free(line);
   return (when + grace > now);
 }
 
- 
-    
 /* Checks for counter based verification code. Returns -1 on error, 0 on
  * success, and 1, if no counter based code had been entered, and subsequent
  * tests should be applied.
@@ -1770,9 +1770,9 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
     } else if (!strncmp(argv[i], "grace_period=", 13)) {
       char *remainder = NULL;
       const time_t grace = (time_t)strtol(argv[i] + 13, &remainder, 10);
-      if (grace < 0 || (remainder && *remainder)) {
+      if (grace < 0 || *remainder) {
         log_message(LOG_ERR, pamh,
-                    "Invalid  in setting \"%s\"."
+                    "Invalid value in setting \"%s\"."
                     "grace_period must be a positive number of seconds.",
                     argv[i]);
         return -1;
@@ -1851,17 +1851,16 @@ static int google_authenticator(pam_handle_t *pamh,
   const long hotp_counter = get_hotp_counter(pamh, buf);
 
   /*
-   * Check to see if a successful login from the same host happened 
-   * within the grace period.  If it did, then allow login wihtout 
+   * Check to see if a successful login from the same host happened
+   * within the grace period. If it did, then allow login without
    * an additional code.
    */
   if (buf && within_grace_period(pamh, &params, buf)) {
     rc = PAM_SUCCESS;
-    log_message(LOG_INFO, pamh, "within grace period: google_authenticator for %s", username);
+    log_message(LOG_INFO, pamh,
+                "within grace period: google_authenticator for \"%s\"", username);
     goto out;
   }
-    
-    
 
   // Only if nullok and we do not have a code will we NOT ask for a code.
   // In all other cases (i.e "have code" and "no nullok and no code") we DO ask for a code.
@@ -2045,12 +2044,13 @@ static int google_authenticator(pam_handle_t *pamh,
       updated = 1;
     }
 
-
     // Display a success or error message
     if (rc == PAM_SUCCESS) {
       log_message(LOG_INFO , pamh, "Accepted google_authenticator for %s", username);
       if (params.grace_period != 0) {
-        update_logindetails(pamh, &params, &buf);
+        if (update_logindetails(pamh, &params, &buf)) {
+          log_message(LOG_ERR, pamh, "Failed to store grace_period timestamp in config");
+        }
       }
     } else {
       log_message(LOG_ERR, pamh, "Invalid verification code for %s", username);
