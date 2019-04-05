@@ -410,6 +410,7 @@ static int drop_privileges(pam_handle_t *pamh, const char *username, int uid,
   return 0;
 }
 
+// open secret file, return 0 on success.
 static int open_secret_file(pam_handle_t *pamh, const char *secret_filename,
                             struct Params *params, const char *username,
                             int uid, struct stat *orig_stat) {
