@@ -176,3 +176,13 @@ timebased, use the `google-authenticator` binary to generate a secret key in
 your home directory with the proper option.  In this mode, clock skew is
 irrelevant and the window size option now applies to how many codes beyond the
 current one that would be accepted, to reduce synchronization problems.
+
+### grace_period=seconds
+
+If present and non-zero, provide a grace period during which a second
+verification code will not be requested. Try setting seconds to 86400
+to allow a full-day between requesting codes; or 3600 for an hour.
+
+This works by adding an (IP address, timestamp) pair to the security
+file after a successful one-time-password login;
+only the last ten distinct IP addresses are tracked.
