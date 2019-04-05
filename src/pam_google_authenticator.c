@@ -1858,7 +1858,7 @@ static int google_authenticator(pam_handle_t *pamh,
   if (buf && within_grace_period(pamh, &params, buf)) {
     rc = PAM_SUCCESS;
     log_message(LOG_INFO, pamh,
-                "within grace period: google_authenticator for \"%s\"", username);
+                "within grace period: \"%s\"", username);
     goto out;
   }
 
