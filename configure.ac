@@ -59,7 +59,19 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 	[AC_DEFINE([PAM_CONST], [], \
 	[Prevent certain PAM functions from using const arguments])
 	AC_MSG_RESULT([no])])
+
+
+	AC_MSG_CHECKING(whether compiler understands -Wall)
+	old_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -Wall"
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])],
+	  AC_MSG_RESULT(yes),
+	  AC_MSG_RESULT(no)
+	  CFLAGS="$old_CFLAGS")
+
 AC_LANG_POP(C)
+
+
 
 AC_SEARCH_LIBS([dlopen], [dl])
 
