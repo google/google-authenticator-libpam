@@ -789,7 +789,7 @@ int main(int argc, char *argv[]) {
       }
     } else {
       const unsigned long tm = 1;
-      printf("Your verification code for code %d is %06d\n",
+      printf("Your verification code for code %lu is %06d\n",
              tm, generateCode(secret, tm));
     }
     printf("Your emergency scratch codes are:\n");
@@ -850,12 +850,15 @@ int main(int argc, char *argv[]) {
       exit(0);
     }
   }
-  secret_fn = realloc(secret_fn, 2*strlen(secret_fn) + 3);
+
+  int len = strlen(secret_fn);
+  /* Note realloc does not zero extra space */
+  secret_fn = realloc(secret_fn, 2 * len + 3);
   if (!secret_fn) {
     perror("malloc()");
     _exit(1);
   }
-  char *tmp_fn = strrchr(secret_fn, '\000') + 1;
+  char *tmp_fn = &secret_fn[len + 1];
   strcat(strcpy(tmp_fn, secret_fn), "~");
 
   // Add optional flags.
