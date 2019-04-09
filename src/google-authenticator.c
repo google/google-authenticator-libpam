@@ -851,15 +851,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  int len = strlen(secret_fn);
-  /* Note realloc does not zero extra space */
-  secret_fn = realloc(secret_fn, 2 * len + 3);
-  if (!secret_fn) {
+  const int size = strlen(secret_fn) + 3;
+  char* tmp_fn = malloc(size);
+  if (!tmp_fn) {
     perror("malloc()");
     _exit(1);
   }
-  char *tmp_fn = &secret_fn[len + 1];
-  strcat(strcpy(tmp_fn, secret_fn), "~");
+  snprintf(tmp_fn, size, "%s~", secret_fn);
 
   // Add optional flags.
   if (use_totp) {
@@ -933,22 +931,28 @@ int main(int argc, char *argv[]) {
   if (fd < 0) {
     fprintf(stderr, "Failed to create \"%s\" (%s)",
             secret_fn, strerror(errno));
-    free(secret_fn);
-    return 1;
+    goto errout;
   }
   if (write(fd, secret, strlen(secret)) != (ssize_t)strlen(secret) ||
       rename(tmp_fn, secret_fn)) {
     perror("Failed to write new secret");
     unlink(secret_fn);
-    close(fd);
-    free(secret_fn);
-    return 1;
+    goto errout;
   }
 
+  free(tmp_fn);
   free(secret_fn);
   close(fd);
 
   return 0;
+
+errout:
+  if (fd > 0) {
+    close(fd);
+  }
+  free(secret_fn);
+  free(tmp_fn);
+  return 1;
 }
 /* ---- Emacs Variables ----
  * Local Variables:
