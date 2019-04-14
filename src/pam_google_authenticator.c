@@ -1557,10 +1557,13 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
     //
     // Parse value.
     //
-    char host[40]; /* Max len of ipv6 address is 8*4 digits plus 7 colons.
-                    * Plus trailing NUL is 40 */
+
+    // Max len of ipv6 address is 8*4 digits plus 7 colons.
+    // Plus trailing NUL is 40.
+    // But RHOST can be FQDN, and by RFC1035 that's 255 characters as max.
+    char host[256];
     unsigned long when = 0; // Timestamp of current entry.
-    const int scanf_rc = sscanf(line, " %39[0-9a-zA-Z:.-] %lu ", host, &when);
+    const int scanf_rc = sscanf(line, " %255[0-9a-zA-Z:.-] %lu ", host, &when);
     free(line);
 
     if (scanf_rc != 2) {
@@ -1587,9 +1590,9 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
   /*
    * Max length in decimal digits of a 64 bit number is (64 log 2) + 1
    * Plus space and NUL termination, is 23.
-   * Max len of IPv6 address is 39.
+   * Max len of hostname is 255.
    */
-  char value[64];
+  char value[255+23+1];
   memset(value, 0, sizeof value);
 
   snprintf(value, sizeof value, "%s %lu", rhost, (unsigned long)now);
