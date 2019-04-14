@@ -1560,7 +1560,7 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
     char host[40]; /* Max len of ipv6 address is 8*4 digits plus 7 colons.
                     * Plus trailing NUL is 40 */
     unsigned long when = 0; // Timestamp of current entry.
-    const int scanf_rc = sscanf(line, " %39[0-9a-fA-F:.] %lu ", host, &when);
+    const int scanf_rc = sscanf(line, " %39[0-9a-zA-Z:.-] %lu ", host, &when);
     free(line);
 
     if (scanf_rc != 2) {
