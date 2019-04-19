@@ -164,6 +164,12 @@ the authorized user.
 
 Allow users to log in without OTP, if they haven't set up OTP yet.
 
+PAM requires at least one `SUCCESS` answer from a module, and `nullok`
+causes this module to say `IGNORE`. This means that if this option is
+used at least one other module must have said `SUCCESS`. One way to do
+this is to add `auth required pam_permit.so` to the end of the PAM
+config.
+
 ### echo_verification_code
 
 By default, the PAM module does not echo the verification code when it is
