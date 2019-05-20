@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
     }
 
     const char *binfile = (optind < argc) ? argv[optind] : "-";
-    int d = strcmp(binfile, "-") == 0 ? STDIN_FILENO : open(binfile, O_RDONLY);
+    const int d = strcmp(binfile, "-") == 0 ? STDIN_FILENO : open(binfile, O_RDONLY);
     if (d < 0) {
       err(1, "Failed to open %s: %s\n", binfile, strerror(errno));
     }
@@ -123,9 +123,16 @@ int main(int argc, char *argv[]) {
       // AND multiple of 8 to ensure we feed
       //  valid data to base32_decode().
     }
-    uint8_t *input = malloc(st.st_size + 1);
+    const size_t bufsize = st.st_size + 1;
+    if (bufsize < st.st_size) {
+      err(1, "Integer overflow in input size");
+    }
+    uint8_t *input = malloc(bufsize);
+    if (!input) {
+      err(1, "Failed to allocate memory");
+    }
     int amt_read;
-    int amt_to_read = st.st_size;
+    const int amt_to_read = st.st_size;
     errno = 0;
     while ((amt_read = read(d, input, amt_to_read)) > 0 || errno == EINTR) {
       if (errno == EINTR) {
@@ -134,9 +141,9 @@ int main(int argc, char *argv[]) {
 
       // Encoding: 8 bytes out for every 5 input, plus up to 6 padding, and nul
       // Decoding: up to 5 bytes out for every 8 input.
-      int result_avail = (mode == ENCODE_FILE) ?
-                         ((amt_read + 4) / 5 * 8 + 6 + 1) :
-                         ((amt_read + 7) / 8 * 5) ;
+      const int result_avail = (mode == ENCODE_FILE) ?
+                               ((amt_read + 4) / 5 * 8 + 6 + 1) :
+                               ((amt_read + 7) / 8 * 5) ;
       uint8_t *result = malloc(result_avail);
 
       input[amt_read] = '\0';
@@ -155,6 +162,7 @@ int main(int argc, char *argv[]) {
       fflush(stdout);
       free(result);
     }
+    free(input);
     if (amt_read < 0) {
       err(1, "Failed to read from %s: %s\n", binfile, strerror(errno));
     }
@@ -167,7 +175,11 @@ int main(int argc, char *argv[]) {
     }
 
     const char *base32_value = argv[2];
-    int result_avail = strlen(base32_value) + 1;
+    const int result_avail = strlen(base32_value) + 1;
+    if (result_avail < strlen(base32_value)) {
+      err(1, "Integer overflow in input size");
+    }
+
     uint8_t *result = malloc(result_avail);
 
     retval = base32_decode((uint8_t *)base32_value, result, result_avail);
@@ -176,6 +188,7 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
     full_write(STDOUT_FILENO, result, retval);
+    free(result);
   }
   return 0;
 }
