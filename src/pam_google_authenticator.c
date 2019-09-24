@@ -279,13 +279,14 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
         log_message(LOG_ERR, pamh, "Unexpectedly large path name: %d", subst_len);
         goto errout;
       }
+      const int varidx = var - secret_filename;
       char *resized = realloc(secret_filename,
                               strlen(secret_filename) + subst_len + 1);
       if (!resized) {
         log_message(LOG_ERR, pamh, "Short mem allocation failed");
         goto errout;
       }
-      var += resized - secret_filename;
+      var = resized + varidx;
       secret_filename = resized;
       memmove(var + subst_len, var + var_len, strlen(var + var_len) + 1);
       memmove(var, subst, subst_len);
