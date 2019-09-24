@@ -485,6 +485,7 @@ static char *read_file_contents(pam_handle_t *pamh,
                                 off_t filesize) {
   // Arbitrary limit to prevent integer overflow.
   if (filesize > 1000000) {
+    close(*fd);
     errno = E2BIG;
     return NULL;
   }
