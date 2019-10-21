@@ -61,6 +61,9 @@ Currently, the following options are recognized:
     for most users as invalid login attempts and generated-but-not-used
     tokens both contribute to synchronization problems.
 
+  OTP_DISABLED
+    disable OTP for this user.
+
 
 Any all-numeric sequence of eight-digit numbers are randomly generated
 one-time scratch code tokens. The user can enter any arbitrary

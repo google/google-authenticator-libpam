@@ -536,6 +536,10 @@ static int is_totp(const char *buf) {
   return !!strstr(buf, "\" TOTP_AUTH");
 }
 
+static int is_otp_disabled(const char *buf) {
+  return !!strstr(buf, "\" OTP_DISABLED");
+}
+
 // Wrap write() making sure that partial writes don't break everything.
 // Return 0 on success, errno otherwise.
 static int
@@ -1864,6 +1868,16 @@ static int google_authenticator(pam_handle_t *pamh,
     rc = PAM_SUCCESS;
     log_message(LOG_INFO, pamh,
                 "within grace period: \"%s\"", username);
+    goto out;
+  }
+
+  /*
+   * Check whether otp has been disbaled for this user
+   */
+  if (buf && is_otp_disabled(buf)) {
+    rc = PAM_SUCCESS;
+    log_message(LOG_INFO, pamh,
+                "otp disabled: \"%s\"", username);
     goto out;
   }
 
