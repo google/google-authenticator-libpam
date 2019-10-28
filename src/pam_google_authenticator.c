@@ -73,6 +73,7 @@ typedef struct Params {
   int        no_strict_owner;
   int        allowed_perm;
   time_t     grace_period;
+  int        allow_readonly;
 } Params;
 
 static char oom;
@@ -1769,6 +1770,8 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
       params->no_increment_hotp = 1;
     } else if (!strcmp(argv[i], "nullok")) {
       params->nullok = NULLOK;
+    } else if (!strcmp(argv[i], "allow_readonly")) {
+      params->allow_readonly = 1;
     } else if (!strcmp(argv[i], "echo-verification-code") ||
                !strcmp(argv[i], "echo_verification_code")) {
       params->echocode = PAM_PROMPT_ECHO_ON;
@@ -2089,8 +2092,13 @@ static int google_authenticator(pam_handle_t *pamh,
         snprintf(s, sizeof(s), "Error \"%s\" while writing config", strerror(err));
         conv_error(pamh, s);
       }
-      // Could not persist new state. Deny access.
-      rc = PAM_AUTH_ERR;
+
+      // If allow_readonly parameter is defined than ignore write errors and
+      // allow user to login.
+      if (!params.allow_readonly) {
+        // Could not persist new state. Deny access.
+        rc = PAM_AUTH_ERR;
+      }
     }
   }
 

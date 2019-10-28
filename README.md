@@ -192,3 +192,13 @@ to allow a full-day between requesting codes; or 3600 for an hour.
 This works by adding an (IP address, timestamp) pair to the security
 file after a successful one-time-password login;
 only the last ten distinct IP addresses are tracked.
+
+### allow_readonly
+
+DANGEROUS OPTION!
+
+By default, if the `grace_period` option is defined the PAM module requires
+some free space to store the IP address and timestamp of the last login.
+It could prevent access if a server has no free space or in case of an
+update config file error. With the `allow_readonly` option you can ignore
+any errors which could occur during config file update.
