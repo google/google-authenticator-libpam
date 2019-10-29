@@ -197,6 +197,11 @@ only the last ten distinct IP addresses are tracked.
 
 DANGEROUS OPTION!
 
+With this option an attacker with ability to fill up the filesystem (flood
+server with web requests, or if they have an account just fill the disk up) can
+force a situation where one-time-passwords can be reused, defeating the purpose
+of "one time".
+
 By default, if the `grace_period` option is defined the PAM module requires
 some free space to store the IP address and timestamp of the last login.
 It could prevent access if a server has no free space or in case of an
