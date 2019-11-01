@@ -585,7 +585,9 @@ static int write_file_contents(pam_handle_t *pamh,
     err = ERANGE;
     goto cleanup;
   }
+  const mode_t old_mask = umask(077);
   fd = mkstemp(tmp_filename);
+  umask(old_mask);
   if (fd < 0) {
     err = errno;
     log_message(LOG_ERR, pamh, "Failed to create tempfile \"%s\": %s",
