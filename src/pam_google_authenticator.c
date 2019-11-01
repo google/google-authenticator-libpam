@@ -197,7 +197,7 @@ getpwnam_buf_max_size()
 }
 
 static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
-                                 const char *username, int *uid) {
+                                 const char *username, uid_t *uid) {
   if (!username) {
     return NULL;
   }
@@ -1706,6 +1706,10 @@ static int check_counterbased_code(pam_handle_t *pamh,
   return 1;
 }
 
+// parse a user name.
+// input: user name
+// output: uid
+// return: 0 on success.
 static int parse_user(pam_handle_t *pamh, const char *name, uid_t *uid) {
   char *endptr;
   errno = 0;
@@ -1801,7 +1805,8 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
 static int google_authenticator(pam_handle_t *pamh,
                                 int argc, const char **argv) {
   int        rc = PAM_AUTH_ERR;
-  int        uid = -1, old_uid = -1, old_gid = -1, fd = -1;
+  uid_t      uid = -1;
+  int        old_uid = -1, old_gid = -1, fd = -1;
   char       *buf = NULL;
   struct stat orig_stat = { 0 };
   uint8_t    *secret = NULL;
@@ -1833,7 +1838,7 @@ static int google_authenticator(pam_handle_t *pamh,
     // If user doesn't exist, use 'nobody'.
     if (uid == -1) {
       drop_username = nobody;
-      if (!get_secret_filename(pamh, &params, drop_username, &uid)) {
+      if (parse_user(pamh, drop_username, &uid)) {
         // If 'nobody' doesn't exist, bail. We need to drop privs to *someone*.
         goto out;
       }
