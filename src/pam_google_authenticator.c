@@ -182,6 +182,20 @@ get_rhost(pam_handle_t *pamh, const Params *params) {
   return (const char *)rhost;
 }
 
+static size_t
+getpwnam_buf_max_size()
+{
+#ifdef _SC_GETPW_R_SIZE_MAX
+  size_t len = sysconf(_SC_GETPW_R_SIZE_MAX);
+  if (len <= 0) {
+    return 4096;
+  }
+  return len;
+#else
+  return 4096;
+#endif
+}
+
 static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
                                  const char *username, int *uid) {
   if (!username) {
@@ -201,14 +215,7 @@ static char *get_secret_filename(pam_handle_t *pamh, const Params *params,
   char *secret_filename = NULL; // Here because goto jumps.
 
   if (!params->fixed_uid) {
-    #ifdef _SC_GETPW_R_SIZE_MAX
-    int len = sysconf(_SC_GETPW_R_SIZE_MAX);
-    if (len <= 0) {
-      len = 4096;
-    }
-    #else
-    int len = 4096;
-    #endif
+    const int len = getpwnam_buf_max_size();
     buf = malloc(len);
     *uid = -1;
     if (buf == NULL) {
@@ -1707,14 +1714,7 @@ static int parse_user(pam_handle_t *pamh, const char *name, uid_t *uid) {
     *uid = (uid_t)l;
     return 0;
   }
-  #ifdef _SC_GETPW_R_SIZE_MAX
-  int len   = sysconf(_SC_GETPW_R_SIZE_MAX);
-  if (len <= 0) {
-    len = 4096;
-  }
-  #else
-  int len   = 4096;
-  #endif
+  const size_t len = getpwnam_buf_max_size();
   char *buf = malloc(len);
   if (!buf) {
     log_message(LOG_ERR, pamh, "Out of memory");
