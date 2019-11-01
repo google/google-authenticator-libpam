@@ -1599,7 +1599,9 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
   memset(value, 0, sizeof value);
 
   snprintf(value, sizeof value, "%s %lu", rhost, (unsigned long)now);
-  set_cfg_value(pamh, name, value, buf);
+  if (set_cfg_value(pamh, name, value, buf) < 0) {
+    log_message(LOG_WARNING, pamh, "Failed to set cfg value for login host");
+  }
 
   return 0;
 }
