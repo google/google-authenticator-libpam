@@ -186,7 +186,7 @@ static size_t
 getpwnam_buf_max_size()
 {
 #ifdef _SC_GETPW_R_SIZE_MAX
-  size_t len = sysconf(_SC_GETPW_R_SIZE_MAX);
+  const ssize_t len = sysconf(_SC_GETPW_R_SIZE_MAX);
   if (len <= 0) {
     return 4096;
   }
