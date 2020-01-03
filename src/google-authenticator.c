@@ -413,10 +413,17 @@ static char *maybeAddOption(const char *msg, char *buf, size_t nbuf,
   return buf;
 }
 
+static void
+print_version() {
+  puts("google-authenticator "VERSION);
+}
+
 static void usage(void) {
+  print_version();
   puts(
  "google-authenticator [<options>]\n"
  " -h, --help                     Print this message\n"
+ "     --version                  Print version\n"
  " -c, --counter-based            Set up counter-based (HOTP) verification\n"
  " -C, --no-confirm               Don't confirm code. For non-interactive setups\n"
  " -t, --time-based               Set up time-based (TOTP) verification\n"
@@ -471,6 +478,7 @@ int main(int argc, char *argv[]) {
     static const char optstring[] = "+hcCtdDfl:i:qQ:r:R:us:S:w:We:";
     static struct option options[] = {
       { "help",             0, 0, 'h' },
+      { "version",          0, 0, 0},
       { "counter-based",    0, 0, 'c' },
       { "no-confirm",       0, 0, 'C' },
       { "time-based",       0, 0, 't' },
@@ -511,6 +519,10 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Failed to parse command line\n");
         _exit(1);
       }
+      exit(0);
+    } else if (!idx--) {
+      // --version
+      print_version();
       exit(0);
     } else if (!idx--) {
       // counter-based, -c
