@@ -39,10 +39,11 @@
 #include <string.h>
 
 #ifndef HAVE_EXPLICIT_BZERO
-void
-explicit_bzero(void *s, size_t len)
+void explicit_bzero(volatile void *s, size_t len)
 {
-  memset(s, '\0', len);
-  asm volatile ("":::"memory");
+	volatile char *p = (char*)s;
+	while (len--) {
+		*p++ = '\0';
+	}
 }
 #endif
