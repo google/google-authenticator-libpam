@@ -39,11 +39,12 @@
 #include <string.h>
 
 #ifndef HAVE_EXPLICIT_BZERO
-void explicit_bzero(volatile void *s, size_t len)
+void
+explicit_bzero(volatile void *s, size_t len)
 {
-	volatile char *p = (char*)s;
-	while (len--) {
-		*p++ = '\0';
-	}
+  volatile char *p = (char*)s;
+  while (len--) {
+    *p++ = '\0';
+  }
 }
 #endif
