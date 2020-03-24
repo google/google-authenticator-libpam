@@ -424,7 +424,7 @@ static int open_secret_file(pam_handle_t *pamh, const char *secret_filename,
                             struct Params *params, const char *username,
                             int uid, struct stat *orig_stat) {
   // Try to open "~/.google_authenticator"
-  int fd = open(secret_filename, O_RDONLY);
+  const int fd = open(secret_filename, O_RDONLY);
   if (fd < 0 ||
       fstat(fd, orig_stat) < 0) {
     if (params->nullok != NULLERR && errno == ENOENT) {
@@ -433,7 +433,8 @@ static int open_secret_file(pam_handle_t *pamh, const char *secret_filename,
       // but we remember that this was the result of a missing state file.
       params->nullok = SECRETNOTFOUND;
     } else {
-      log_message(LOG_ERR, pamh, "Failed to read \"%s\" for \"%s\"", secret_filename, username);
+      log_message(LOG_ERR, pamh, "Failed to read \"%s\" for \"%s\": %s",
+                  secret_filename, username, strerror(errno));
     }
  error:
     if (fd >= 0) {
