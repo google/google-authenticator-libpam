@@ -1,6 +1,11 @@
 # Google Authenticator PAM module
 
-Example PAM module demonstrating two-factor authentication.
+Example PAM module demonstrating two-factor authentication for logging
+into servers via SSH, OpenVPN, etc…
+
+This project is not about logging in to Google, Facebook, or other
+TOTP/HOTP second factor systems, even if they recommend using the
+Google Authenticator apps.
 
 [![Build Status](https://travis-ci.org/google/google-authenticator-libpam.svg?branch=master)](https://travis-ci.org/google/google-authenticator-libpam)
 
