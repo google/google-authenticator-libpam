@@ -37,6 +37,8 @@ AS_IF([test "x$ac_cv_header_security_pam_modules_h" = "xno" \
   AC_MSG_ERROR([Unable to find the PAM library or the PAM header files])
 ])
 
+PKG_CHECK_MODULES(LIBCURL, libcurl)
+
 AC_MSG_CHECKING([whether certain PAM functions require const arguments])
 AC_LANG_PUSH(C)
 # Force test to bail if const isn't needed
