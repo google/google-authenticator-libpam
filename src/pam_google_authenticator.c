@@ -52,9 +52,9 @@
 #include "hmac.h"
 #include "sha1.h"
 #include "util.h"
+#include "pam_util.h"
 #include "pam_authy.h"
 
-#define MODULE_NAME   "pam_google_authenticator"
 #define SECRET        "~/.google_authenticator"
 #define CODE_PROMPT   "Verification code: "
 #define AUTHY_PROMPT  "Confirm login request"
@@ -82,290 +82,6 @@ typedef struct Params {
 static char oom;
 
 static const char* nobody = "nobody";
-
-#if defined(DEMO) || defined(TESTING)
-static char* error_msg = NULL;
-
-const char *get_error_msg(void) __attribute__((visibility("default")));
-const char *get_error_msg(void) {
-  if (!error_msg) {
-    return "";
-  }
-  return error_msg;
-}
-#endif
-
-static void log_message(int priority, pam_handle_t *pamh,
-                        const char *format, ...) {
-  char *service = NULL;
-  if (pamh)
-    pam_get_item(pamh, PAM_SERVICE, (void *)&service);
-  if (!service)
-    service = "";
-
-  char logname[80];
-  snprintf(logname, sizeof(logname), "%s(" MODULE_NAME ")", service);
-
-  va_list args;
-  va_start(args, format);
-#if !defined(DEMO) && !defined(TESTING)
-  openlog(logname, LOG_CONS | LOG_PID, LOG_AUTHPRIV);
-  vsyslog(priority, format, args);
-  closelog();
-#else
-  if (!error_msg) {
-    error_msg = strdup("");
-  }
-  {
-    char buf[1000];
-    vsnprintf(buf, sizeof buf, format, args);
-    const int newlen = strlen(error_msg) + 1 + strlen(buf) + 1;
-    char* n = malloc(newlen);
-    if (n) {
-      snprintf(n, newlen, "%s%s%s", error_msg, strlen(error_msg)?"\n":"",buf);
-      free(error_msg);
-      error_msg = n;
-    } else {
-      fprintf(stderr, "Failed to malloc %d bytes for log data.\n", newlen);
-    }
-  }
-#endif
-
-  va_end(args);
-
-  if (priority == LOG_EMERG) {
-    // Something really bad happened. There is no way we can proceed safely.
-    _exit(1);
-  }
-}
-
-#include <errno.h>
-#include <jansson.h>
-#include <curl/curl.h>
-
-pam_handle_t *_pamh_g;
-typedef struct {
-       char *memory;
-       size_t size;
-} mblock_t;
-
-static size_t ctrl_curl_receive(void *content, size_t size, size_t nmemb,
-		void *user_mem)
-{
-       size_t realsize = size * nmemb;
-       mblock_t *mem = (mblock_t *)user_mem;
-
-       mem->memory = realloc(mem->memory, mem->size + realsize + 1);
-       if (mem->memory == NULL) {
-              return -ENOMEM;
-       }
-
-       memcpy(&(mem->memory[mem->size]), content, realsize);
-       mem->size += realsize;
-       mem->memory[mem->size] = 0;
-
-       return realsize;
-}
-
-static authy_rc_t authy_check_aproval(char *api_key, char *uuid)
-{
-	CURL *curl = NULL;
-	CURLcode res;
-	authy_rc_t rc;
-	mblock_t buffer = {0};
-	struct curl_slist *headers = NULL;
-	char *url = NULL, *xheader = NULL, *str = NULL;
-	json_t *payload = NULL, *jt = NULL;
-
-	curl = curl_easy_init();
-	if (!curl) {
-		rc = AUTHY_CLIENT_ERROR;
-		goto exit_err;
-	}
-
-	asprintf(&url, "https://api.authy.com/onetouch/json/approval_requests/%s",
-			uuid);
-	asprintf(&xheader, "X-Authy-API-Key: %s", api_key);
-	headers = curl_slist_append(headers, xheader);
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	curl_easy_setopt(curl, CURLOPT_URL, url);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ctrl_curl_receive);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&buffer);
-
-	log_message(LOG_INFO, _pamh_g, "url: %s\n", url);
-	res = curl_easy_perform(curl);
-	if (res != CURLE_OK) {
-		log_message(LOG_ERR, _pamh_g, "curl_easy_perform() failed: %s\n",
-				curl_easy_strerror(res));
-		rc = AUTHY_CONN_ERROR;
-		goto exit_err;
-	}
-	rc = AUTHY_OK;
-
-	log_message(LOG_INFO, _pamh_g, "curl: %s\n", (char*)buffer.memory);
-	payload = json_loads(buffer.memory, JSON_DECODE_ANY, NULL);
-	jt = json_object_get(payload, "approval_request");
-	if (!jt) {
-		rc = AUTHY_CONN_ERROR;
-		goto exit_err;
-	}
-
-	str = (char *)json_string_value(json_object_get(jt, "status"));
-	if (!str) {
-		rc = AUTHY_CONN_ERROR;
-		goto exit_err;
-	}
-
-	if (!strcmp(str, "pending")) {
-		rc = AUTHY_PENDING;
-	} else if (!strcmp(str, "expired")) {
-		rc = AUTHY_EXPIRED;
-	} else if (!strcmp(str, "denied")) {
-		rc = AUTHY_DENIED;
-	} else if (!strcmp(str, "approved")) {
-		rc = AUTHY_APPROVED;
-	}
-
-exit_err:
-	if (buffer.memory)
-		free(buffer.memory);
-
-	if (jt)
-		free(jt);
-
-	if (str)
-		free(str);
-
-	if (payload)
-		free(payload);
-
-	if (url)
-		free(url);
-
-	if (curl)
-		curl_easy_cleanup(curl);
-
-	return rc;
-}
-
-static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *api_key, int timeout, char **uuid)
-{
-	CURL *curl = NULL;
-	CURLcode res;
-	authy_rc_t rc;
-	mblock_t buffer = {0};
-	struct curl_slist *headers = NULL;
-	char *url = NULL, *xheader = NULL, *str = NULL;
-	json_t *payload = NULL, *jt = NULL;
-	char *data = NULL;
-	const char *username;
-
-	curl = curl_easy_init();
-	if (!curl) {
-		rc = AUTHY_CLIENT_ERROR;
-		goto exit_err;
-	}
-
-	pam_get_user(pamh, &username, NULL);
-
-	asprintf(&url, "https://api.authy.com/onetouch/json/users/%ld/approval_requests",
-			authy_id);
-	asprintf(&xheader, "X-Authy-API-Key: %s", api_key);
-	headers = curl_slist_append(headers, xheader);
-	asprintf(&data, "message=Login authentication");
-	asprintf(&data, "%s&details=%s", data, username);
-	asprintf(&data, "%s&seconds_to_expire=%d", data, timeout);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(data));
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	curl_easy_setopt(curl, CURLOPT_URL, url);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ctrl_curl_receive);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&buffer);
-
-	log_message(LOG_INFO, _pamh_g, "url: %s\n", url);
-	res = curl_easy_perform(curl);
-	if (res != CURLE_OK) {
-		log_message(LOG_ERR, _pamh_g, "curl_easy_perform() failed: %s\n",
-				curl_easy_strerror(res));
-		rc = AUTHY_CONN_ERROR;
-		goto exit_err;
-	}
-	rc = AUTHY_OK;
-
-	log_message(LOG_INFO, _pamh_g, "curl: %s\n", (char*)buffer.memory);
-	payload = json_loads(buffer.memory, JSON_DECODE_ANY, NULL);
-
-	jt = json_object_get(payload, "approval_request");
-	if (!jt) {
-		rc = AUTHY_CONN_ERROR;
-		goto exit_err;
-	}
-
-	str = (char *)json_string_value(json_object_get(jt, "uuid"));
-	if (!str) {
-		rc = AUTHY_CONN_ERROR;
-		goto exit_err;
-	}
-	asprintf(uuid, "%s", str);
-
-exit_err:
-	if (buffer.memory)
-		free(buffer.memory);
-
-	if (jt)
-		free(jt);
-
-	if (str)
-		free(str);
-
-	if (payload)
-		free(payload);
-
-	if (url)
-		free(url);
-
-	if (data)
-		free(data);
-
-	if (curl)
-		curl_easy_cleanup(curl);
-
-	return rc;
-}
-
-authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int timeout)
-{
-	time_t start_time;
-	authy_rc_t rc;
-	char *uuid = NULL;
-
-	rc = authy_post_aproval(pamh, authy_id, api_key, 30, &uuid);
-	if (rc != AUTHY_OK) {
-		goto exit_err;
-	}
-
-	start_time = time(NULL);
-	do {
-		rc = authy_check_aproval(api_key, uuid);
-		switch (rc) {
-			case AUTHY_DENIED:
-			case AUTHY_EXPIRED:
-			case AUTHY_APPROVED:
-				goto exit_err;
-			case AUTHY_PENDING:
-			default:
-				break;
-		}
-		sleep(1);
-	} while ((start_time + timeout) > time(NULL));
-	rc = AUTHY_EXPIRED;
-
-exit_err:
-	if (uuid)
-		free(uuid);
-
-	return rc;
-}
 
 static int converse(pam_handle_t *pamh, int nargs,
                     PAM_CONST struct pam_message **message,
@@ -1151,7 +867,7 @@ static long get_cfg_value_long(pam_handle_t *pamh, const char *buf, char *parm) 
     return -1;
   }
 
-  long cfg_val = 0;
+  long cfg_val = -1;
   if (cfg_val_str) {
     cfg_val = strtoll(cfg_val_str, NULL, 10);
   }
@@ -2158,10 +1874,12 @@ static int google_authenticator(pam_handle_t *pamh,
     if (params.enable_authy) {
       authy_rc_t arc;
       long authy_id = get_cfg_value_long(pamh, buf, "AUTHY_ID");
+      long authy_timeout = get_cfg_value_long(pamh, buf, "AUTHY_TIMEOUT");
+      if (authy_timeout < 0) {
+        authy_timeout = 30;
+      }
       char *api_key = (char *)get_cfg_value_char(pamh, buf, "AUTHY_API_KEY");
-      log_message(LOG_INFO, pamh,
-                  "authy auth, id: %ld, api_key: %s", authy_id, api_key);
-      arc = authy_login(pamh, authy_id, api_key, 60);
+      arc = authy_login(pamh, authy_id, api_key, authy_timeout);
       log_message(LOG_INFO, pamh, "authy_login result: %d\n", arc);
       if (arc == AUTHY_APPROVED) {
         rc = PAM_SUCCESS;

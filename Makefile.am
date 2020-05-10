@@ -30,6 +30,7 @@ google_authenticator_SOURCES = \
 pam_google_authenticator_la_SOURCES = \
 	src/pam_google_authenticator.c \
 	src/pam_authy.c \
+	src/pam_util.c \
 	$(CORE_SRC)
 pam_google_authenticator_la_LIBADD  = -lpam -lcurl -ljansson
 pam_google_authenticator_la_CFLAGS  = $(AM_CFLAGS)
