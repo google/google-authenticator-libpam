@@ -857,6 +857,7 @@ static long get_hotp_counter(pam_handle_t *pamh, const char *buf) {
   return counter;
 }
 
+#ifdef ENABLE_AUTHY
 static long get_cfg_value_long(pam_handle_t *pamh, const char *buf, char *parm) {
   if (!buf) {
     return -1;
@@ -888,6 +889,7 @@ static const char *get_cfg_value_char(pam_handle_t *pamh, const char *buf, char 
 
   return cfg_val_str;
 }
+#endif /* ENABLE_AUTHY */
 
 static int rate_limit(pam_handle_t *pamh, const char *secret_filename,
                       int *updated, char **buf) {
@@ -1871,6 +1873,7 @@ static int google_authenticator(pam_handle_t *pamh,
       log_message(LOG_WARNING , pamh, "No secret configured for user %s, asking for code anyway.", username);
     }
 
+#ifdef ENABLE_AUTHY
     if (params.enable_authy) {
       authy_rc_t arc;
       long authy_id = get_cfg_value_long(pamh, buf, "AUTHY_ID");
@@ -1886,6 +1889,7 @@ static int google_authenticator(pam_handle_t *pamh,
         goto out;
       }
     }
+#endif /* ENABLE_AUTHY */
 
     int must_advance_counter = 0;
     char *pw = NULL, *saved_pw = NULL;

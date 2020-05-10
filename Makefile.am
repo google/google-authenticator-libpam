@@ -29,10 +29,12 @@ google_authenticator_SOURCES = \
 
 pam_google_authenticator_la_SOURCES = \
 	src/pam_google_authenticator.c \
-	src/pam_authy.c \
 	src/pam_util.c \
 	$(CORE_SRC)
-pam_google_authenticator_la_LIBADD  = -lpam -lcurl -ljansson
+if ENABLE_AUTHY
+pam_google_authenticator_la_SOURCES += src/pam_authy.c
+endif
+pam_google_authenticator_la_LIBADD  = -lpam
 pam_google_authenticator_la_CFLAGS  = $(AM_CFLAGS)
 pam_google_authenticator_la_LDFLAGS = $(AM_LDFLAGS) $(MODULES_LDFLAGS) -export-symbols-regex "pam_sm_(setcred|open_session|authenticate)"
 

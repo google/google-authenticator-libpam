@@ -37,8 +37,6 @@ AS_IF([test "x$ac_cv_header_security_pam_modules_h" = "xno" \
   AC_MSG_ERROR([Unable to find the PAM library or the PAM header files])
 ])
 
-PKG_CHECK_MODULES(LIBCURL, libcurl)
-
 AC_MSG_CHECKING([whether certain PAM functions require const arguments])
 AC_LANG_PUSH(C)
 # Force test to bail if const isn't needed
@@ -73,6 +71,38 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 
 AC_LANG_POP(C)
 
+AC_ARG_ENABLE([authy],
+	[AC_HELP_STRING([--enable-authy],
+			[enable Authy push authentcation [default=no]])],
+	[
+		xenable_authy=$enableval
+		AC_DEFINE(ENABLE_AUTHY, [1], [Enable Authy extension])
+	],
+	[xenable_authy=no])
+AM_CONDITIONAL([ENABLE_AUTHY], [false])
+
+AC_CHECK_LIB([curl], [curl_global_init],
+	[
+		LIBS="$LIBS -lcurl"
+		have_curl=yes
+	],[ have_curl=no ],[])
+AC_CHECK_HEADERS([curl/curl.h])
+
+AC_CHECK_LIB([jansson], [json_loads],
+	[
+		LIBS="$LIBS -ljansson"
+		have_jansson=yes
+	],[ have_jansson=no ],[])
+AC_CHECK_HEADERS([jansson.h])
+
+if test "x${xenable_authy}" == "x${enableval}"; then
+	if test "x${have_jansson}" == "xno"; then
+		AC_MSG_ERROR([libjannson is missing])
+	fi
+	if test "x${have_jansson}" == "xno" || test "x${have_curl}" == "xno"; then
+		AC_MSG_ERROR([libcurl is missing])
+	fi
+fi
 
 
 AC_SEARCH_LIBS([dlopen], [dl])
@@ -83,6 +113,7 @@ AC_OUTPUT
 
 echo "
   $PACKAGE_NAME version $PACKAGE_VERSION
+  Authy..........: $xenable_authy
   Prefix.........: $prefix
   Debug Build....: $debug
   C Compiler.....: $CC $CFLAGS $CPPFLAGS
