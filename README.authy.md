@@ -1,10 +1,6 @@
-# Google Authenticator PAM module with Authy push notification
-
-PAM authentication using Authy (https://authy.com/) push notifications.
-
-This repository is a fork of the "Google Authenticator PAM module"
-https://github.com/google/google-authenticator-libpam with an extra
-extension to send Authy push notification.
+# Authy push authentication for Google Authenticator PAM module
+This extension uses Authy (https://authy.com/) to authenticate
+using push notifications.
 
 ## Build, install, setup
 See https://github.com/google/google-authenticator-libpam
