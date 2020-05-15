@@ -46,7 +46,7 @@ static authy_rc_t authy_check_aproval(pam_handle_t *pamh, char *api_key, char *u
 	authy_rc_t rc;
 	mblock_t buffer = {0};
 	struct curl_slist *headers = NULL;
-	char *url = NULL, *xheader = NULL, *str = NULL;
+	char *str = NULL;
 	json_t *payload = NULL, *jt = NULL;
 
 	curl = curl_easy_init();
@@ -56,9 +56,13 @@ static authy_rc_t authy_check_aproval(pam_handle_t *pamh, char *api_key, char *u
 		goto exit_err;
 	}
 
-	asprintf(&url, "https://api.authy.com/onetouch/json/approval_requests/%s",
+	char url[80];
+	snprintf(url, sizeof(url),
+			"https://api.authy.com/onetouch/json/approval_requests/%s",
 			uuid);
-	asprintf(&xheader, "X-Authy-API-Key: %s", api_key);
+	char xheader[40];
+	snprintf(xheader, sizeof(xheader), "X-Authy-API-Key: %s", api_key);
+
 	headers = curl_slist_append(headers, xheader);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -111,9 +115,6 @@ exit_err:
 	if (payload)
 		free(payload);
 
-	if (url)
-		free(url);
-
 	if (curl)
 		curl_easy_cleanup(curl);
 
@@ -127,9 +128,8 @@ static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *ap
 	authy_rc_t rc;
 	mblock_t buffer = {0};
 	struct curl_slist *headers = NULL;
-	char *url = NULL, *xheader = NULL, *str = NULL;
+	char *str = NULL;
 	json_t *payload = NULL, *jt = NULL;
-	char *data = NULL;
 	char hostname[128] = { 0 };
 	const char *username;
 
@@ -145,13 +145,20 @@ static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *ap
 		strcpy(hostname, "unix");
 	}
 
-	asprintf(&url, "https://api.authy.com/onetouch/json/users/%ld/approval_requests",
+	char url[80];
+	snprintf(url, sizeof(url),
+			"https://api.authy.com/onetouch/json/users/%ld/approval_requests",
 			authy_id);
-	asprintf(&xheader, "X-Authy-API-Key: %s", api_key);
+
+	char xheader[40];
+	snprintf(xheader, sizeof(xheader), "X-Authy-API-Key: %s", api_key);
+
+	char data[170];
+	snprintf(data, sizeof(data), "message=Login authentication&" \
+			"details=%s at %s&seconds_to_expire=%d",
+			username, hostname, timeout);
+
 	headers = curl_slist_append(headers, xheader);
-	asprintf(&data, "message=Login authentication");
-	asprintf(&data, "%s&details=%s at %s", data, username, hostname);
-	asprintf(&data, "%s&seconds_to_expire=%d", data, timeout);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(data));
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -175,13 +182,12 @@ static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *ap
 		rc = AUTHY_CONN_ERROR;
 		goto exit_err;
 	}
-	str = (char *)json_string_value(json_object_get(jt, "uuid"));
-	if (!str) {
+	*uuid = (char *)json_string_value(json_object_get(jt, "uuid"));
+	if (!*uuid) {
 		log_message(LOG_ERR, pamh, "authy_err: 'uuid' field missing");
 		rc = AUTHY_CONN_ERROR;
 		goto exit_err;
 	}
-	asprintf(uuid, "%s", str);
 
 exit_err:
 	if (buffer.memory)
@@ -195,12 +201,6 @@ exit_err:
 
 	if (payload)
 		free(payload);
-
-	if (url)
-		free(url);
-
-	if (data)
-		free(data);
 
 	if (curl)
 		curl_easy_cleanup(curl);
