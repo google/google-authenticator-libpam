@@ -103,17 +103,10 @@ static authy_rc_t authy_check_aproval(pam_handle_t *pamh, char *api_key, char *u
 	}
 
 exit_err:
-	if (buffer.memory)
-		free(buffer.memory);
-
-	if (jt)
-		free(jt);
-
-	if (str)
-		free(str);
-
-	if (payload)
-		free(payload);
+	free(buffer.memory);
+	free(jt);
+	free(str);
+	free(payload);
 
 	if (curl)
 		curl_easy_cleanup(curl);
@@ -190,17 +183,10 @@ static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *ap
 	}
 
 exit_err:
-	if (buffer.memory)
-		free(buffer.memory);
-
-	if (jt)
-		free(jt);
-
-	if (str)
-		free(str);
-
-	if (payload)
-		free(payload);
+	free(buffer.memory);
+	free(jt);
+	free(str);
+	free(payload);
 
 	if (curl)
 		curl_easy_cleanup(curl);
@@ -215,14 +201,14 @@ authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int tim
 	char *uuid = NULL;
 	char *err_str = NULL;
 
-      log_message(LOG_INFO, pamh, "authy_dbg: Sending Authy authentication push request");
+	log_message(LOG_INFO, pamh, "authy_dbg: Sending Authy authentication push request");
 	rc = authy_post_aproval(pamh, authy_id, api_key, 30, &uuid);
 	if (rc != AUTHY_OK) {
 		log_message(LOG_ERR, pamh, "authy_err: Push Authentication request failed");
 		goto exit_err;
 	}
 
-      log_message(LOG_INFO, pamh, "authy_dbg: Waiting for Authy authentication approval");
+	log_message(LOG_INFO, pamh, "authy_dbg: Waiting for Authy authentication approval");
 	start_time = time(NULL);
 	do {
 		rc = authy_check_aproval(pamh, api_key, uuid);
@@ -248,8 +234,7 @@ exit_err:
 	if (err_str)
 		log_message(LOG_ERR, pamh, "authy_err: Authentication %s", err_str);
 
-	if (uuid)
-		free(uuid);
+	free(uuid);
 
 	return rc;
 }
