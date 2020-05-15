@@ -133,7 +133,14 @@ static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *ap
 		goto exit_err;
 	}
 
-	pam_get_user(pamh, &username, NULL);
+	if (pam_get_user(pamh, &username, NULL) != PAM_SUCCESS ||
+			!username ||
+			!*username) {
+		log_message(LOG_ERR, pamh, "pam_get_user() failed to get a user name");
+		rc = AUTHY_LIB_ERROR;
+		goto exit_err;
+	}
+
 	if (gethostname(hostname, sizeof(hostname)-1)) {
 		strcpy(hostname, "unix");
 	}
