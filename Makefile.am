@@ -33,6 +33,8 @@ pam_google_authenticator_la_SOURCES = \
 	$(CORE_SRC)
 if ENABLE_AUTHY
 pam_google_authenticator_la_SOURCES += src/pam_authy.c
+else
+pam_google_authenticator_la_SOURCES += src/pam_no_authy.c
 endif
 pam_google_authenticator_la_LIBADD  = -lpam
 pam_google_authenticator_la_CFLAGS  = $(AM_CFLAGS)

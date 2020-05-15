@@ -9,6 +9,7 @@ typedef enum {
 	AUTHY_DENIED,
 	AUTHY_PENDING,
 	AUTHY_EXPIRED,
+	AUTHY_NO_SUPPORT,
 } authy_rc_t;
 
 authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int timeout);
