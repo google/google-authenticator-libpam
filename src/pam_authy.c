@@ -39,7 +39,7 @@ static size_t ctrl_curl_receive(void *content, size_t size, size_t nmemb,
        return realsize;
 }
 
-static authy_rc_t authy_check_aproval(pam_handle_t *pamh, char *api_key, char *uuid)
+static authy_rc_t authy_check_approval(pam_handle_t *pamh, char *api_key, char *uuid)
 {
 	CURL *curl = NULL;
 	CURLcode res;
@@ -114,7 +114,7 @@ exit_err:
 	return rc;
 }
 
-static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *api_key, int timeout, char **uuid)
+static authy_rc_t authy_post_approval(pam_handle_t *pamh, long authy_id, char *api_key, int timeout, char **uuid)
 {
 	CURL *curl = NULL;
 	CURLcode res;
@@ -209,7 +209,7 @@ authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int tim
 	char *err_str = NULL;
 
 	log_message(LOG_INFO, pamh, "authy_dbg: Sending Authy authentication push request");
-	rc = authy_post_aproval(pamh, authy_id, api_key, 30, &uuid);
+	rc = authy_post_approval(pamh, authy_id, api_key, 30, &uuid);
 	if (rc != AUTHY_OK) {
 		log_message(LOG_ERR, pamh, "authy_err: Push Authentication request failed");
 		goto exit_err;
@@ -218,7 +218,7 @@ authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int tim
 	log_message(LOG_INFO, pamh, "authy_dbg: Waiting for Authy authentication approval");
 	start_time = time(NULL);
 	do {
-		rc = authy_check_aproval(pamh, api_key, uuid);
+		rc = authy_check_approval(pamh, api_key, uuid);
 		switch (rc) {
 			case AUTHY_DENIED:
 				err_str = "denied";
