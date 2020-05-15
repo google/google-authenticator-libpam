@@ -52,15 +52,16 @@ static authy_rc_t authy_check_approval(pam_handle_t *pamh, char *api_key, char *
 		goto exit_err;
 	}
 
-	char url[80];
+	char url[120];
 	snprintf(url, sizeof(url),
 			"https://api.authy.com/onetouch/json/approval_requests/%s",
 			uuid);
 
-	char xheader[40];
+	char xheader[64];
 	snprintf(xheader, sizeof(xheader), "X-Authy-API-Key: %s", api_key);
 
-	struct curl_slist *headers = curl_slist_append(headers, xheader);
+	struct curl_slist *headers = NULL;
+	headers = curl_slist_append(headers, xheader);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ctrl_curl_receive);
@@ -69,7 +70,7 @@ static authy_rc_t authy_check_approval(pam_handle_t *pamh, char *api_key, char *
 	CURLcode res;
 	res = curl_easy_perform(curl);
 	if (res != CURLE_OK) {
-		log_message(LOG_ERR, pamh, "authy_err: curl call failed: %d (%s)", 
+		log_message(LOG_ERR, pamh, "authy_err: curl call failed: %d (%s)",
 				res, curl_easy_strerror(res));
 		rc = AUTHY_CONN_ERROR;
 		goto exit_err;
@@ -143,15 +144,16 @@ static authy_rc_t authy_post_approval(pam_handle_t *pamh, long authy_id, char *a
 			"https://api.authy.com/onetouch/json/users/%ld/approval_requests",
 			authy_id);
 
-	char xheader[40];
+	char xheader[64];
 	snprintf(xheader, sizeof(xheader), "X-Authy-API-Key: %s", api_key);
 
-	char data[170];
+	char data[200];
 	snprintf(data, sizeof(data), "message=Login authentication&" \
 			"details=%s at %s&seconds_to_expire=%d",
 			username, hostname, timeout);
 
-	struct curl_slist *headers = curl_slist_append(headers, xheader);
+	struct curl_slist *headers = NULL;
+	headers = curl_slist_append(headers, xheader);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(data));
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
