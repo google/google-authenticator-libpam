@@ -208,7 +208,8 @@ authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int tim
 	}
 
 	log_message(LOG_INFO, pamh, "authy_dbg: Waiting for Authy authentication approval");
-	time_t start_time = time(NULL);
+	struct timespec start_time, now;
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
 	do {
 		rc = authy_check_approval(pamh, api_key, uuid);
 		switch (rc) {
@@ -225,7 +226,8 @@ authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int tim
 				break;
 		}
 		sleep(1);
-	} while ((start_time + timeout + 5) > time(NULL));
+		clock_gettime(CLOCK_MONOTONIC, &now);
+	} while ((start_time.tv_sec + timeout + 5) > now.tv_sec);
 	rc = AUTHY_EXPIRED;
 	err_str = "expired (pam timeout)";
 
