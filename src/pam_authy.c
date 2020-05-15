@@ -66,6 +66,7 @@ static authy_rc_t authy_check_approval(pam_handle_t *pamh, char *api_key, char *
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ctrl_curl_receive);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&buffer);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
 
 	CURLcode res;
 	res = curl_easy_perform(curl);
@@ -160,6 +161,7 @@ static authy_rc_t authy_post_approval(pam_handle_t *pamh, long authy_id, char *a
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ctrl_curl_receive);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&buffer);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
 
 	CURLcode res;
 	res = curl_easy_perform(curl);
