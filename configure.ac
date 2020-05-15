@@ -71,39 +71,26 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 
 AC_LANG_POP(C)
 
+AC_CHECK_LIB([curl], [curl_global_init], [have_curl=yes])
+AC_CHECK_LIB([jansson], [json_loads], [have_jansson=yes])
+
 AC_ARG_ENABLE([authy],
-	[AC_HELP_STRING([--enable-authy],
-			[enable Authy push authentcation [default=no]])],
-	[
-		xenable_authy=$enableval
-		AC_DEFINE(ENABLE_AUTHY, [1], [Enable Authy extension])
-	],
-	[xenable_authy=no])
-AM_CONDITIONAL([ENABLE_AUTHY], [false])
+	[AC_HELP_STRING([--disable-authy],
+			[enable Authy push authentcation [default=auto]])],
+	[:], [enable_authy=check])
 
-AC_CHECK_LIB([curl], [curl_global_init],
-	[
-		LIBS="$LIBS -lcurl"
-		have_curl=yes
-	],[ have_curl=no ],[])
-AC_CHECK_HEADERS([curl/curl.h])
+AS_IF([test "x${enable_authy}" = "xcheck"], [
+	AS_IF([test "x${have_jansson}" = "xyes" && test "x${have_curl}" = "xyes"],
+		[enable_authy=yes], [enable_authy=no])
+])
 
-AC_CHECK_LIB([jansson], [json_loads],
-	[
-		LIBS="$LIBS -ljansson"
-		have_jansson=yes
-	],[ have_jansson=no ],[])
-AC_CHECK_HEADERS([jansson.h])
-
-if test "x${xenable_authy}" == "x${enableval}"; then
-	if test "x${have_jansson}" == "xno"; then
-		AC_MSG_ERROR([libjannson is missing])
-	fi
-	if test "x${have_jansson}" == "xno" || test "x${have_curl}" == "xno"; then
-		AC_MSG_ERROR([libcurl is missing])
-	fi
-fi
-
+AM_CONDITIONAL([ENABLE_AUTHY], [test x${enable_authy} = xyes])
+AS_IF([test "x${enable_authy}" = "xyes"], [
+	AS_IF([test "x${have_jansson}" != "xyes"], [AC_MSG_ERROR([libjannson is missing])])
+	AS_IF([test "x${have_curl}"    != "xyes"], [AC_MSG_ERROR([libcurl is missing])])
+	AC_DEFINE(ENABLE_AUTHY, [1], [Define to 1 to enable Authy extension.])
+	LIBS="$LIBS -ljansson -lcurl"
+])
 
 AC_SEARCH_LIBS([dlopen], [dl])
 
@@ -113,7 +100,7 @@ AC_OUTPUT
 
 echo "
   $PACKAGE_NAME version $PACKAGE_VERSION
-  Authy..........: $xenable_authy
+  Authy..........: $enable_authy
   Prefix.........: $prefix
   Debug Build....: $debug
   C Compiler.....: $CC $CFLAGS $CPPFLAGS
