@@ -51,7 +51,7 @@ static authy_rc_t authy_check_aproval(pam_handle_t *pamh, char *api_key, char *u
 
 	curl = curl_easy_init();
 	if (!curl) {
-		log_message(LOG_ERR, pamh, "authy_err: curl init failed\n");
+		log_message(LOG_ERR, pamh, "authy_err: curl init failed");
 		rc = AUTHY_LIB_ERROR;
 		goto exit_err;
 	}
@@ -67,7 +67,7 @@ static authy_rc_t authy_check_aproval(pam_handle_t *pamh, char *api_key, char *u
 
 	res = curl_easy_perform(curl);
 	if (res != CURLE_OK) {
-		log_message(LOG_ERR, pamh, "authy_err: curl call failed: %d (%s)\n", 
+		log_message(LOG_ERR, pamh, "authy_err: curl call failed: %d (%s)", 
 				res, curl_easy_strerror(res));
 		rc = AUTHY_CONN_ERROR;
 		goto exit_err;
@@ -77,7 +77,7 @@ static authy_rc_t authy_check_aproval(pam_handle_t *pamh, char *api_key, char *u
 	payload = json_loads(buffer.memory, JSON_DECODE_ANY, NULL);
 	jt = json_object_get(payload, "approval_request");
 	if (!jt) {
-		log_message(LOG_ERR, pamh, "authy_err: 'approval_request' field missing\n");
+		log_message(LOG_ERR, pamh, "authy_err: 'approval_request' field missing");
 		rc = AUTHY_CONN_ERROR;
 		goto exit_err;
 	}
@@ -135,7 +135,7 @@ static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *ap
 
 	curl = curl_easy_init();
 	if (!curl) {
-		log_message(LOG_ERR, pamh, "authy_err: curl init failed\n");
+		log_message(LOG_ERR, pamh, "authy_err: curl init failed");
 		rc = AUTHY_LIB_ERROR;
 		goto exit_err;
 	}
@@ -161,7 +161,7 @@ static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *ap
 
 	res = curl_easy_perform(curl);
 	if (res != CURLE_OK) {
-		log_message(LOG_ERR, pamh, "authy_err: curl call failed: %d (%s)\n", 
+		log_message(LOG_ERR, pamh, "authy_err: curl call failed: %d (%s)", 
 				res, curl_easy_strerror(res));
 		rc = AUTHY_CONN_ERROR;
 		goto exit_err;
@@ -171,13 +171,13 @@ static authy_rc_t authy_post_aproval(pam_handle_t *pamh, long authy_id, char *ap
 	payload = json_loads(buffer.memory, JSON_DECODE_ANY, NULL);
 	jt = json_object_get(payload, "approval_request");
 	if (!jt) {
-		log_message(LOG_ERR, pamh, "authy_err: 'approval_request' field missing\n");
+		log_message(LOG_ERR, pamh, "authy_err: 'approval_request' field missing");
 		rc = AUTHY_CONN_ERROR;
 		goto exit_err;
 	}
 	str = (char *)json_string_value(json_object_get(jt, "uuid"));
 	if (!str) {
-		log_message(LOG_ERR, pamh, "authy_err: 'uuid' field missing\n");
+		log_message(LOG_ERR, pamh, "authy_err: 'uuid' field missing");
 		rc = AUTHY_CONN_ERROR;
 		goto exit_err;
 	}
@@ -215,14 +215,14 @@ authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int tim
 	char *uuid = NULL;
 	char *err_str = NULL;
 
-      log_message(LOG_INFO, pamh, "authy_dbg: Sending Authy authentication push request\n");
+      log_message(LOG_INFO, pamh, "authy_dbg: Sending Authy authentication push request");
 	rc = authy_post_aproval(pamh, authy_id, api_key, 30, &uuid);
 	if (rc != AUTHY_OK) {
-		log_message(LOG_ERR, pamh, "authy_err: Push Authentication request failed\n");
+		log_message(LOG_ERR, pamh, "authy_err: Push Authentication request failed");
 		goto exit_err;
 	}
 
-      log_message(LOG_INFO, pamh, "authy_dbg: Waiting for Authy authentication approval\n");
+      log_message(LOG_INFO, pamh, "authy_dbg: Waiting for Authy authentication approval");
 	start_time = time(NULL);
 	do {
 		rc = authy_check_aproval(pamh, api_key, uuid);
@@ -234,7 +234,7 @@ authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int tim
 				err_str = "expired";
 				goto exit_err;
 			case AUTHY_APPROVED:
-				log_message(LOG_INFO, pamh, "authy_dbg: Authentication approved\n");
+				log_message(LOG_INFO, pamh, "authy_dbg: Authentication approved");
 				goto exit_err;
 			default:
 				break;
@@ -246,7 +246,7 @@ authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int tim
 
 exit_err:
 	if (err_str)
-		log_message(LOG_ERR, pamh, "authy_err: Authentication %s\n", err_str);
+		log_message(LOG_ERR, pamh, "authy_err: Authentication %s", err_str);
 
 	if (uuid)
 		free(uuid);
