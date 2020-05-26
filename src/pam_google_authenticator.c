@@ -338,7 +338,7 @@ static int setuser(int uid) {
 }
 
 static int setgroup(int gid) {
-#ifdef HAS_SETFSUID
+#ifdef HAVE_SETFSUID
   // The semantics of setfsgid() are a little unusual. On success, the
   // previous group id is returned. On failure, the current groupd id is
   // returned.
