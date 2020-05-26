@@ -52,10 +52,12 @@
 #include "hmac.h"
 #include "sha1.h"
 #include "util.h"
+#include "pam_util.h"
+#include "pam_authy.h"
 
-#define MODULE_NAME   "pam_google_authenticator"
 #define SECRET        "~/.google_authenticator"
 #define CODE_PROMPT   "Verification code: "
+#define AUTHY_PROMPT  "Confirm login request"
 #define PWCODE_PROMPT "Password & verification code: "
 
 typedef struct Params {
@@ -74,67 +76,12 @@ typedef struct Params {
   int        allowed_perm;
   time_t     grace_period;
   int        allow_readonly;
+  int        enable_authy;
 } Params;
 
 static char oom;
 
 static const char* nobody = "nobody";
-
-#if defined(DEMO) || defined(TESTING)
-static char* error_msg = NULL;
-
-const char *get_error_msg(void) __attribute__((visibility("default")));
-const char *get_error_msg(void) {
-  if (!error_msg) {
-    return "";
-  }
-  return error_msg;
-}
-#endif
-
-static void log_message(int priority, pam_handle_t *pamh,
-                        const char *format, ...) {
-  char *service = NULL;
-  if (pamh)
-    pam_get_item(pamh, PAM_SERVICE, (void *)&service);
-  if (!service)
-    service = "";
-
-  char logname[80];
-  snprintf(logname, sizeof(logname), "%s(" MODULE_NAME ")", service);
-
-  va_list args;
-  va_start(args, format);
-#if !defined(DEMO) && !defined(TESTING)
-  openlog(logname, LOG_CONS | LOG_PID, LOG_AUTHPRIV);
-  vsyslog(priority, format, args);
-  closelog();
-#else
-  if (!error_msg) {
-    error_msg = strdup("");
-  }
-  {
-    char buf[1000];
-    vsnprintf(buf, sizeof buf, format, args);
-    const int newlen = strlen(error_msg) + 1 + strlen(buf) + 1;
-    char* n = malloc(newlen);
-    if (n) {
-      snprintf(n, newlen, "%s%s%s", error_msg, strlen(error_msg)?"\n":"",buf);
-      free(error_msg);
-      error_msg = n;
-    } else {
-      fprintf(stderr, "Failed to malloc %d bytes for log data.\n", newlen);
-    }
-  }
-#endif
-
-  va_end(args);
-
-  if (priority == LOG_EMERG) {
-    // Something really bad happened. There is no way we can proceed safely.
-    _exit(1);
-  }
-}
 
 static int converse(pam_handle_t *pamh, int nargs,
                     PAM_CONST struct pam_message **message,
@@ -908,6 +855,38 @@ static long get_hotp_counter(pam_handle_t *pamh, const char *buf) {
   free((void *)counter_str);
 
   return counter;
+}
+
+static long get_cfg_value_long(pam_handle_t *pamh, const char *buf, char *parm) {
+  if (!buf) {
+    return -1;
+  }
+  const char *cfg_val_str = get_cfg_value(pamh, parm, buf);
+  if (cfg_val_str == &oom) {
+    // Out of memory. This is a fatal error
+    return -1;
+  }
+
+  long cfg_val = -1;
+  if (cfg_val_str) {
+    cfg_val = strtoll(cfg_val_str, NULL, 10);
+  }
+  free((void *)cfg_val_str);
+
+  return cfg_val;
+}
+
+static const char *get_cfg_value_char(pam_handle_t *pamh, const char *buf, char *parm) {
+  if (!buf) {
+    return NULL;
+  }
+  const char *cfg_val_str = get_cfg_value(pamh, parm, buf);
+  if (cfg_val_str == &oom) {
+    // Out of memory. This is a fatal error
+    return NULL;
+  }
+
+  return cfg_val_str;
 }
 
 static int rate_limit(pam_handle_t *pamh, const char *secret_filename,
@@ -1781,6 +1760,8 @@ static int parse_args(pam_handle_t *pamh, int argc, const char **argv,
       params->nullok = NULLOK;
     } else if (!strcmp(argv[i], "allow_readonly")) {
       params->allow_readonly = 1;
+    } else if (!strcmp(argv[i], "enable_authy")) {
+      params->enable_authy = 1;
     } else if (!strcmp(argv[i], "echo-verification-code") ||
                !strcmp(argv[i], "echo_verification_code")) {
       params->echocode = PAM_PROMPT_ECHO_ON;
@@ -1888,6 +1869,22 @@ static int google_authenticator(pam_handle_t *pamh,
 
     if (!secret) {
       log_message(LOG_WARNING , pamh, "No secret configured for user %s, asking for code anyway.", username);
+    }
+
+    if (params.enable_authy) {
+      authy_rc_t arc;
+      long authy_id = get_cfg_value_long(pamh, buf, "AUTHY_ID");
+      long authy_timeout = get_cfg_value_long(pamh, buf, "AUTHY_TIMEOUT");
+      if (authy_timeout < 0) {
+        authy_timeout = 30;
+      }
+      char *api_key = (char *)get_cfg_value_char(pamh, buf, "AUTHY_API_KEY");
+      arc = authy_login(pamh, authy_id, api_key, authy_timeout);
+      log_message(LOG_INFO, pamh, "authy_login result: %d\n", arc);
+      if (arc == AUTHY_APPROVED) {
+        rc = PAM_SUCCESS;
+        goto out;
+      }
     }
 
     int must_advance_counter = 0;

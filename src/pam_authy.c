@@ -1,0 +1,266 @@
+/*
+ * Google authenticator extension for Authy push notifications
+ *
+ * Copyright 2020 Krzysztof Olejarczyk
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#define _GNU_SOURCE
+
+#include "config.h"
+#include <stdio.h>
+#include <unistd.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+#include <syslog.h>
+#include <jansson.h>
+#include <curl/curl.h>
+
+#include <security/pam_appl.h>
+#include <security/pam_modules.h>
+
+#include "pam_util.h"
+#include "pam_authy.h"
+
+typedef struct {
+       char *memory;
+       size_t size;
+} mblock_t;
+
+static size_t ctrl_curl_receive(void *content, size_t size, size_t nmemb,
+		void *user_mem)
+{
+       size_t realsize = size * nmemb;
+       mblock_t *mem = (mblock_t *)user_mem;
+
+       mem->memory = realloc(mem->memory, mem->size + realsize + 1);
+       if (mem->memory == NULL) {
+		return -ENOMEM;
+       }
+
+       memcpy(&(mem->memory[mem->size]), content, realsize);
+       mem->size += realsize;
+       mem->memory[mem->size] = 0;
+
+       return realsize;
+}
+
+static authy_rc_t authy_check_approval(pam_handle_t *pamh, char *api_key, char *uuid)
+{
+	json_t *payload = NULL, *jt = NULL;
+	mblock_t buffer = {0};
+	authy_rc_t rc;
+
+	CURL *curl = curl_easy_init();
+	if (!curl) {
+		log_message(LOG_ERR, pamh, "authy_err: curl init failed");
+		rc = AUTHY_LIB_ERROR;
+		goto exit_err;
+	}
+
+	char url[120];
+	snprintf(url, sizeof(url),
+			"https://api.authy.com/onetouch/json/approval_requests/%s",
+			uuid);
+
+	char xheader[64];
+	snprintf(xheader, sizeof(xheader), "X-Authy-API-Key: %s", api_key);
+
+	struct curl_slist *headers = NULL;
+	headers = curl_slist_append(headers, xheader);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ctrl_curl_receive);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&buffer);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+
+	CURLcode res;
+	res = curl_easy_perform(curl);
+	if (res != CURLE_OK) {
+		log_message(LOG_ERR, pamh, "authy_err: curl call failed: %d (%s)",
+				res, curl_easy_strerror(res));
+		rc = AUTHY_CONN_ERROR;
+		goto exit_err;
+	}
+	rc = AUTHY_OK;
+
+	payload = json_loads(buffer.memory, JSON_DECODE_ANY, NULL);
+	jt = json_object_get(payload, "approval_request");
+	if (!jt) {
+		log_message(LOG_ERR, pamh, "authy_err: 'approval_request' field missing");
+		rc = AUTHY_CONN_ERROR;
+		goto exit_err;
+	}
+
+	char *str = (char *)json_string_value(json_object_get(jt, "status"));
+	if (!str) {
+		rc = AUTHY_CONN_ERROR;
+		goto exit_err;
+	}
+
+	if (!strcmp(str, "pending")) {
+		rc = AUTHY_PENDING;
+	} else if (!strcmp(str, "expired")) {
+		rc = AUTHY_EXPIRED;
+	} else if (!strcmp(str, "denied")) {
+		rc = AUTHY_DENIED;
+	} else if (!strcmp(str, "approved")) {
+		rc = AUTHY_APPROVED;
+	}
+
+exit_err:
+	free(buffer.memory);
+	free(jt);
+	free(payload);
+
+	if (curl)
+		curl_easy_cleanup(curl);
+
+	return rc;
+}
+
+static authy_rc_t authy_post_approval(pam_handle_t *pamh, long authy_id, char *api_key, int timeout, char **uuid)
+{
+	json_t *payload = NULL, *jt = NULL;
+	mblock_t buffer = {0};
+	authy_rc_t rc;
+
+	CURL *curl = curl_easy_init();
+	if (!curl) {
+		log_message(LOG_ERR, pamh, "authy_err: curl init failed");
+		rc = AUTHY_LIB_ERROR;
+		goto exit_err;
+	}
+
+	const char *username;
+	if (pam_get_user(pamh, &username, NULL) != PAM_SUCCESS ||
+			!username ||
+			!*username) {
+		log_message(LOG_ERR, pamh, "pam_get_user() failed to get a user name");
+		rc = AUTHY_LIB_ERROR;
+		goto exit_err;
+	}
+
+	char hostname[128] = {0};
+	if (gethostname(hostname, sizeof(hostname)-1)) {
+		strcpy(hostname, "unix");
+	}
+
+	char url[80];
+	snprintf(url, sizeof(url),
+			"https://api.authy.com/onetouch/json/users/%ld/approval_requests",
+			authy_id);
+
+	char xheader[64];
+	snprintf(xheader, sizeof(xheader), "X-Authy-API-Key: %s", api_key);
+
+	char data[200];
+	snprintf(data, sizeof(data), "message=Login authentication&" \
+			"details=%s at %s&seconds_to_expire=%d",
+			username, hostname, timeout);
+
+	struct curl_slist *headers = NULL;
+	headers = curl_slist_append(headers, xheader);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(data));
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ctrl_curl_receive);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&buffer);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+
+	CURLcode res;
+	res = curl_easy_perform(curl);
+	if (res != CURLE_OK) {
+		log_message(LOG_ERR, pamh, "authy_err: curl call failed: %d (%s)", 
+				res, curl_easy_strerror(res));
+		rc = AUTHY_CONN_ERROR;
+		goto exit_err;
+	}
+	rc = AUTHY_OK;
+
+	payload = json_loads(buffer.memory, JSON_DECODE_ANY, NULL);
+	jt = json_object_get(payload, "approval_request");
+	if (!jt) {
+		log_message(LOG_ERR, pamh, "authy_err: 'approval_request' field missing");
+		rc = AUTHY_CONN_ERROR;
+		goto exit_err;
+	}
+	*uuid = (char *)json_string_value(json_object_get(jt, "uuid"));
+	if (!*uuid) {
+		log_message(LOG_ERR, pamh, "authy_err: 'uuid' field missing");
+		rc = AUTHY_CONN_ERROR;
+		goto exit_err;
+	}
+
+exit_err:
+	free(buffer.memory);
+	free(jt);
+	free(payload);
+
+	if (curl)
+		curl_easy_cleanup(curl);
+
+	return rc;
+}
+
+authy_rc_t authy_login(pam_handle_t *pamh, long authy_id, char *api_key, int timeout)
+{
+	authy_rc_t rc;
+	char *uuid = NULL;
+	char *err_str = NULL;
+
+	log_message(LOG_INFO, pamh, "authy_dbg: Sending Authy authentication push request");
+	rc = authy_post_approval(pamh, authy_id, api_key, 30, &uuid);
+	if (rc != AUTHY_OK) {
+		log_message(LOG_ERR, pamh, "authy_err: Push Authentication request failed");
+		goto exit_err;
+	}
+
+	log_message(LOG_INFO, pamh, "authy_dbg: Waiting for Authy authentication approval");
+	struct timespec start_time, now;
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+	do {
+		rc = authy_check_approval(pamh, api_key, uuid);
+		switch (rc) {
+			case AUTHY_DENIED:
+				err_str = "denied";
+				goto exit_err;
+			case AUTHY_EXPIRED:
+				err_str = "expired";
+				goto exit_err;
+			case AUTHY_APPROVED:
+				log_message(LOG_INFO, pamh, "authy_dbg: Authentication approved");
+				goto exit_err;
+			default:
+				break;
+		}
+		sleep(1);
+		clock_gettime(CLOCK_MONOTONIC, &now);
+	} while ((start_time.tv_sec + timeout + 5) > now.tv_sec);
+	rc = AUTHY_EXPIRED;
+	err_str = "expired (pam timeout)";
+
+exit_err:
+	if (err_str)
+		log_message(LOG_ERR, pamh, "authy_err: Authentication %s", err_str);
+
+	free(uuid);
+
+	return rc;
+}
