@@ -21,6 +21,7 @@ AC_CHECK_HEADERS([sys/fsuid.h])
 AC_CHECK_FUNCS([ \
 	explicit_bzero \
 	setfsuid \
+	setfsgid \
 ])
 
 AC_CHECK_HEADERS_ONCE([security/pam_appl.h])
