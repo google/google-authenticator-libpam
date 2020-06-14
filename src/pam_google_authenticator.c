@@ -53,7 +53,10 @@
 #include "sha1.h"
 #include "util.h"
 
-#define MODULE_NAME   "pam_google_authenticator"
+// Module name shortened to work with rsyslog.
+// See https://github.com/google/google-authenticator-libpam/issues/172
+#define MODULE_NAME   "pam_google_auth"
+
 #define SECRET        "~/.google_authenticator"
 #define CODE_PROMPT   "Verification code: "
 #define PWCODE_PROMPT "Password & verification code: "
