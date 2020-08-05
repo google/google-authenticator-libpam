@@ -624,6 +624,7 @@ static int write_file_contents(pam_handle_t *pamh,
     struct stat sb;
     if (stat(secret_filename, &sb) != 0) {
       err = errno;
+      log_message(LOG_ERR, pamh, "stat(): %s", strerror(err));
       goto cleanup;
     }
 
@@ -640,19 +641,23 @@ static int write_file_contents(pam_handle_t *pamh,
 
   // Write the new file contents.
   if ((err = full_write(fd, buf, strlen(buf)))) {
+    log_message(LOG_ERR, pamh, "write(): %s", strerror(err));
     goto cleanup;
   }
   if (fsync(fd)) {
     err = errno;
+    log_message(LOG_ERR, pamh, "fsync(): %s", strerror(err));
     goto cleanup;
   }
   if (close(fd)) {
     err = errno;
+    log_message(LOG_ERR, pamh, "close(): %s", strerror(err));
     goto cleanup;
   }
   fd = -1; // Prevent double-close.
   if (rename(tmp_filename, secret_filename) != 0) {
     err = errno;
+    log_message(LOG_ERR, pamh, "rename(): %s", strerror(err));
     goto cleanup;
   }
   free(tmp_filename);
