@@ -655,6 +655,23 @@ static int write_file_contents(pam_handle_t *pamh,
     goto cleanup;
   }
   fd = -1; // Prevent double-close.
+
+  // Double-check that the file size is correct.
+  {
+    struct stat st;
+    if (stat(tmp_filename, &st)) {
+      err = errno;
+      log_message(LOG_ERR, pamh, "stat(%s): %s", tmp_filename, strerror(err));
+      goto cleanup;
+    }
+    const off_t want = strlen(buf);
+    if (st.st_size == 0 || (want != st.st_size)) {
+      err = EAGAIN;
+      log_message(LOG_ERR, pamh, "temp file size %d. Should be non-zero and %d", st.st_size, want);
+      goto cleanup;
+    }
+  }
+  
   if (rename(tmp_filename, secret_filename) != 0) {
     err = errno;
     log_message(LOG_ERR, pamh, "rename(): %s", strerror(err));
