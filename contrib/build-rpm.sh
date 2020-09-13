@@ -31,7 +31,7 @@ make dist && \
    echo "=============="
    echo "Available RPMs"
    find "${DIR}/_rpmbuild/" -type f -name 'google-authenticator*.rpm'
-) || echo "Something went wrong" && exit 1
+) || (echo "Something went wrong"; exit 1)
 
 exit 0
 
