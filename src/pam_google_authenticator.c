@@ -2091,6 +2091,7 @@ static int google_authenticator(pam_handle_t *pamh,
     if (rc == PAM_SUCCESS) {
       log_message(LOG_INFO , pamh, "Accepted google_authenticator for %s", username);
       if (params.grace_period != 0) {
+        updated = 1;
         if (update_logindetails(pamh, &params, &buf)) {
           log_message(LOG_ERR, pamh, "Failed to store grace_period timestamp in config");
         }
