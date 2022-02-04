@@ -7,6 +7,11 @@ This project is not about logging in to Google, Facebook, or other
 TOTP/HOTP second factor systems, even if they recommend using the
 Google Authenticator apps.
 
+HMAC-Based One-time Password (HOTP) is specified in
+[RFC 4226](https://tools.ietf.org/html/rfc4226) and 
+Time-based One-time Password (TOTP) is specified in
+[RFC 6238](https://tools.ietf.org/html/rfc6238).
+
 [![Build Status](https://travis-ci.org/google/google-authenticator-libpam.svg?branch=master)](https://travis-ci.org/google/google-authenticator-libpam)
 
 ## Build & install
