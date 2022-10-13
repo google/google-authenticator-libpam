@@ -1,5 +1,5 @@
 ---
-name: Custom issue template
+name: Configuration help
 about: Describe this issue template's purpose here.
 title: ''
 labels: ''
@@ -7,19 +7,22 @@ assignees: ''
 
 ---
 
-## Steps to reproduce
+### System information
+Operating system (e.g. Ubuntu 22.04): ____
+
+### Steps to reproduce
 
 1. …
 
-## What I expected would happen
+### What I expected would happen
 
 FILL IN
 
-## What actually happened
+### What actually happened
 
 FILL IN
 
-## PAM config
+### PAM config
 
 Paste the relevant parts of your PAM config
 
@@ -27,7 +30,7 @@ Paste the relevant parts of your PAM config
 paste here
 ```
 
-## If SSH: SSH config
+### If SSH: SSH config
 
 Paste the relevant parts of `/etc/ssh/sshd_config` or equivalent.
 
@@ -35,13 +38,13 @@ Paste the relevant parts of `/etc/ssh/sshd_config` or equivalent.
 paste here
 ```
 
-## If not SSH: That program's config, and logs
+### If not SSH: That program's config, and logs
 
 ```
 paste here
 ```
 
-## Contents of `/var/log/auth.log` or equivalent
+### Contents of `/var/log/auth.log` or equivalent
 
 ```
 paste here
