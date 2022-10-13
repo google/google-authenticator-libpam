@@ -9,6 +9,7 @@ assignees: ''
 
 ### System information
 Operating system (e.g. Ubuntu 22.04): ____
+Do you use selinux? (check with e.g. `sestatus`): ___
 
 ### Steps to reproduce
 

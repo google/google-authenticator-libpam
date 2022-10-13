@@ -35,6 +35,7 @@ Paste the relevant log lines here
 ### Environment
  - OS: [e.g. Ubuntu]
  - Version [e.g. 22.04]
+- Do you use selinux? (check with e.g. `sestatus`): ___
 
 ### Additional context
 Add any other context about the problem here.
