@@ -1269,8 +1269,8 @@ static int invalidate_timebased_code(int tm, pam_handle_t *pamh,
         return -1;
       }
       log_message(LOG_ERR, pamh,
-                  "Trying to reuse a previously used time-based code. (\"%s\")"
-                  "Retry again in %d seconds. "
+                  "Trying to reuse a previously used time-based code (\"%s\")."
+                  " Retry again in %d seconds. "
                   "Warning! This might mean, you are currently subject to a "
                   "man-in-the-middle attack.", secret_filename, step);
       return -1;
