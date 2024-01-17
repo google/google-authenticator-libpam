@@ -12,13 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# gcloud app deploy --project utc-time2
 import time
-t = time.time()
-u = time.gmtime(t)
-s = time.strftime('%a, %e %b %Y %T GMT', u)
-print 'Content-Type: text/javascript'
-print 'Cache-Control: no-cache'
-print 'Date: ' + s
-print 'Expires: ' + s
-print ''
-print 'var timeskew = new Date().getTime() - ' + str(t*1000) + ';'
+from flask import Flask, make_response, request
+app = Flask(__name__)
+
+@app.route('/')
+def root():
+    t = time.time()
+    u = time.gmtime(t)
+    s = time.strftime('%a, %e %b %Y %T GMT', u)
+
+    resp = make_response('var timeskew = new Date().getTime() - ' + str(t*1000) + ';')
+    resp.headers['Content-Type'] = 'text/javascript'
+    resp.headers['Cache-Control'] = 'no-cache'
+    resp.headers['Date'] = s
+    resp.headers['Expires'] = s
+    return resp
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=8080, debug=True)

@@ -1,8 +1,4 @@
-application: utc-time2
-version: 1
-runtime: python27
-api_version: 1
-threadsafe: false
+runtime: python312
 
 handlers:
 - url: /.*
