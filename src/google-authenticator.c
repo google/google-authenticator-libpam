@@ -181,7 +181,7 @@ static const char *getURL(const char *secret, const char *label,
 
   if (encoderURL) {
     // Show a QR code.
-    const char *encoder = "https://www.google.com/chart?chs=200x200&"
+    const char *encoder = "https://quickchart.io/chart?chs=200x200&"
                           "chld=M|0&cht=qr&chl=";
     const char *encodedURL = urlEncode(url);
 
