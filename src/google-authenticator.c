@@ -157,7 +157,7 @@ static const char *urlEncode(const char *s) {
 }
 
 static const char *getURL(const char *secret, const char *label,
-                          char **encoderURL, const int use_totp, const char *issuer) {
+                          const int use_totp, const char *issuer) {
   const char *encodedLabel = urlEncode(label);
   char *url;
   const char totp = use_totp ? 't' : 'h';
@@ -179,17 +179,6 @@ static const char *getURL(const char *secret, const char *label,
     url = newUrl;
   }
 
-  if (encoderURL) {
-    // Show a QR code.
-    const char *encoder = "https://www.google.com/chart?chs=200x200&"
-                          "chld=M|0&cht=qr&chl=";
-    const char *encodedURL = urlEncode(url);
-
-    *encoderURL = strcat(strcpy(malloc(strlen(encoder) +
-                                       strlen(encodedURL) + 1),
-                                encoder), encodedURL);
-    free((void *)encodedURL);
-  }
   free((void *)encodedLabel);
   return url;
 }
@@ -326,9 +315,7 @@ static void displayEnrollInfo(const char *secret, const char *label,
   if (qr_mode == QR_NONE) {
     return;
   }
-  char *encoderURL;
-  const char *url = getURL(secret, label, &encoderURL, use_totp, issuer);
-  printf("Warning: pasting the following URL into your browser exposes the OTP secret to Google:\n  %s\n", encoderURL);
+  const char *url = getURL(secret, label, use_totp, issuer);
 
   // Only newer systems have support for libqrencode. So instead of requiring
   // it at build-time we look for it at run-time. If it cannot be found, the
@@ -343,7 +330,6 @@ static void displayEnrollInfo(const char *secret, const char *label,
   }
 
   free((char *)url);
-  free(encoderURL);
 }
 
 // ask for a code. Return code, or some garbage if no number given. That's fine
