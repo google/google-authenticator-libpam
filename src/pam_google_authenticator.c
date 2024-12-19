@@ -1909,8 +1909,10 @@ static int google_authenticator(pam_handle_t *pamh,
       if (!pw || pam_set_item(pamh, PAM_AUTHTOK, pw) != PAM_SUCCESS) {
         rc = PAM_AUTH_ERR;
       }
-      explicit_bzero(pw, strlen(pw));
-      free(pw);
+      if (pw) {
+        explicit_bzero(pw, strlen(pw));
+        free(pw);
+      }
     }
     goto out;
   }
