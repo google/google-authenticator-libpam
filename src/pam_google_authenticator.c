@@ -21,6 +21,7 @@
 #include <limits.h>
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,6 +61,7 @@
 #define SECRET        "~/.google_authenticator"
 #define CODE_PROMPT   "Verification code: "
 #define PWCODE_PROMPT "Password & verification code: "
+#define PW_PROMPT     "Password: "
 
 typedef struct Params {
   const char *secret_filename_spec;
@@ -1902,6 +1904,14 @@ static int google_authenticator(pam_handle_t *pamh,
     rc = PAM_SUCCESS;
     log_message(LOG_INFO, pamh,
                 "within grace period: \"%s\"", username);
+    if (params.forward_pass) {
+      char* pw = request_pass(pamh, false, PW_PROMPT);
+      if (!pw || pam_set_item(pamh, PAM_AUTHTOK, pw) != PAM_SUCCESS) {
+        rc = PAM_AUTH_ERR;
+      }
+      explicit_bzero(pw, strlen(pw));
+      free(pw);
+    }
     goto out;
   }
 
