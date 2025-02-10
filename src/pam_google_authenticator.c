@@ -1601,7 +1601,7 @@ update_logindetails(pam_handle_t *pamh, const Params *params, char **buf) {
     // But RHOST can be FQDN, and by RFC1035 that's 255 characters as max.
     char host[256];
     unsigned long when = 0; // Timestamp of current entry.
-    const int scanf_rc = sscanf(line, " %255[0-9a-zA-Z:.-] %lu ", host, &when);
+    const int scanf_rc = sscanf(line, " %255[0-9a-zA-Z:.-%] %lu ", host, &when);
     free(line);
 
     if (scanf_rc != 2) {
@@ -1652,12 +1652,10 @@ within_grace_period(pam_handle_t *pamh, const Params *params,
   const time_t now = get_time();
   const time_t grace = params->grace_period;
   unsigned long when = 0;
-  char match[128];
 
   if (rhost == NULL) {
     return 0;
   }
-  snprintf(match, sizeof match, " %s %%lu ", rhost);
 
   for (int i = 0; i < 10; i++) {
     static char name[] = "LAST0";
@@ -1671,11 +1669,18 @@ within_grace_period(pam_handle_t *pamh, const Params *params,
     if (!line) {
       continue;
     }
-    if (sscanf(line, match, &when) == 1) {
+
+    char* previous_rhost = malloc(strlen(line) * sizeof(char));
+
+    if (sscanf(line, "%s %lu", previous_rhost, &when) == 2 && strcmp(previous_rhost, rhost) == 0) {
       free(line);
+      free(previous_rhost);
       break;
     }
+
+    when = 0;
     free(line);
+    free(previous_rhost);
   }
 
   if (when == 0) {
