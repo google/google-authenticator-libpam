@@ -597,15 +597,15 @@ int main(int argc, char *argv[]) {
       }
       if (!strcasecmp(optarg, "none")) {
         qr_mode = QR_NONE;
-      } else if (!strcasecmp(optarg, "ANSI_INVERSE")) {
+      } else if (!strcasecmp(optarg, "ANSI_INVERSE") || !strcasecmp(optarg, "ANSI-INVERSE")) {
         qr_mode = QR_ANSI_INVERSE;
-      } else if (!strcasecmp(optarg, "ANSI_GREY")) {
+      } else if (!strcasecmp(optarg, "ANSI_GREY") || !strcasecmp(optarg, "ANSI-GREY")) {
         qr_mode = QR_ANSI_GREY;
       } else if (!strcasecmp(optarg, "ANSI")) {
         qr_mode = QR_ANSI;
-      } else if (!strcasecmp(optarg, "UTF8_INVERSE")) {
+      } else if (!strcasecmp(optarg, "UTF8_INVERSE") || !strcasecmp(optarg, "UTF8-INVERSE")) {
         qr_mode = QR_UTF8_INVERSE;
-      } else if (!strcasecmp(optarg, "UTF8_GREY")) {
+      } else if (!strcasecmp(optarg, "UTF8_GREY") || !strcasecmp(optarg, "UTF8-GREY")) {
         qr_mode = QR_UTF8_GREY;
       } else if (!strcasecmp(optarg, "UTF8")) {
         qr_mode = QR_UTF8;
