@@ -1673,6 +1673,7 @@ within_grace_period(pam_handle_t *pamh, const Params *params,
     char* previous_rhost = malloc((strlen(line) * sizeof(char)) + 1);
 
     if (previous_rhost == NULL) {
+      log_message(LOG_ERR, pamh, "Out of memory");
       return 0;
     }
 
