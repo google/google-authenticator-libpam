@@ -45,7 +45,7 @@
 #define BYTES_PER_SCRATCHCODE     4           // 32bit of randomness is enough
 #define BITS_PER_BASE32_CHAR      5           // Base32 expands space by 8/5
 
-static enum { QR_UNSET=0, QR_NONE, QR_ANSI, QR_ANSIi, QR_ANSIg, QR_UTF8, QR_UTF8i, QR_UTF8g } qr_mode = QR_UNSET;
+static enum { QR_UNSET=0, QR_NONE, QR_ANSI, QR_ANSI_INVERSE, QR_ANSI_GREY, QR_UTF8, QR_UTF8_INVERSE, QR_UTF8_GREY } qr_mode = QR_UNSET;
 
 static int generateCode(const char *key, unsigned long tm) {
   uint8_t challenge[8];
@@ -229,10 +229,10 @@ static int displayQRCode(const char* url) {
   // switch to black on grey rather than whatever the current colors are,
   // as well as inverting the current colors. To make sure readers can
   // recognize the code, print a 4-width border around it.
-  const int use_black_on_grey = qr_mode == QR_ANSIg || qr_mode == QR_UTF8g ? 1 : 0;
-  const int use_inverted_colors = qr_mode == QR_ANSIi || qr_mode == QR_UTF8i ? 1 : 0;
-  const char * const color_setup = use_black_on_grey ? ANSI_BLACKONGREY : (use_inverted_colors ? ANSI_INVERSE : "");
-  if (qr_mode == QR_ANSI || qr_mode == QR_ANSIi || qr_mode == QR_ANSIg) {
+  const int use_inverse_colors = qr_mode == QR_ANSI_INVERSE || qr_mode == QR_UTF8_INVERSE;
+  const int use_black_on_grey = qr_mode == QR_ANSI_GREY || qr_mode == QR_UTF8_GREY;
+  const char * const color_setup = use_black_on_grey ? ANSI_BLACKONGREY : (use_inverse_colors ? ANSI_INVERSE : "");
+  if (qr_mode == QR_ANSI || qr_mode == QR_ANSI_INVERSE || qr_mode == QR_ANSI_GREY) {
     const char * const inverse = use_inverted_colors ? ANSI_INVERSEOFF : ANSI_INVERSE;
     const char * const inverse_off = use_inverted_colors ? ANSI_INVERSE : ANSI_INVERSEOFF;
     fputs(ANSI_RESET, stdout);
@@ -427,7 +427,7 @@ static void usage(void) {
  " -l, --label=<label>            Override the default label in \"otpauth://\" URL\n"
  " -i, --issuer=<issuer>          Override the default issuer in \"otpauth://\" URL\n"
  " -q, --quiet                    Quiet mode\n"
- " -Q, --qr-mode={NONE,ANSI,ANSIi,ANSIg,UTF8,UTF8i,UTF8g} QRCode output mode\n"
+ " -Q, --qr-mode={NONE,ANSI,ANSI_INVERSE,ANSI_GREY,UTF8,UTF8_INVERSE,UTF8_GREY} QRCode output mode\n"
  " -r, --rate-limit=N             Limit logins to N per every M seconds\n"
  " -R, --rate-time=M              Limit logins to N per every M seconds\n"
  " -u, --no-rate-limit            Disable rate-limiting\n"
@@ -597,16 +597,16 @@ int main(int argc, char *argv[]) {
       }
       if (!strcasecmp(optarg, "none")) {
         qr_mode = QR_NONE;
-      } else if (!strcasecmp(optarg, "ANSIi")) {
-        qr_mode = QR_ANSIi;
-      } else if (!strcasecmp(optarg, "ANSIg")) {
-        qr_mode = QR_ANSIg;
+      } else if (!strcasecmp(optarg, "ANSI_INVERSE")) {
+        qr_mode = QR_ANSI_INVERSE;
+      } else if (!strcasecmp(optarg, "ANSI_GREY")) {
+        qr_mode = QR_ANSI_GREY;
       } else if (!strcasecmp(optarg, "ANSI")) {
         qr_mode = QR_ANSI;
-      } else if (!strcasecmp(optarg, "UTF8i")) {
-        qr_mode = QR_UTF8i;
-      } else if (!strcasecmp(optarg, "UTF8g")) {
-        qr_mode = QR_UTF8g;
+      } else if (!strcasecmp(optarg, "UTF8_INVERSE")) {
+        qr_mode = QR_UTF8_INVERSE;
+      } else if (!strcasecmp(optarg, "UTF8_GREY")) {
+        qr_mode = QR_UTF8_GREY;
       } else if (!strcasecmp(optarg, "UTF8")) {
         qr_mode = QR_UTF8;
       } else {
