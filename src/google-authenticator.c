@@ -233,8 +233,8 @@ static int displayQRCode(const char* url) {
   const int use_black_on_grey = qr_mode == QR_ANSI_GREY || qr_mode == QR_UTF8_GREY;
   const char * const color_setup = use_black_on_grey ? ANSI_BLACKONGREY : (use_inverse_colors ? ANSI_INVERSE : "");
   if (qr_mode == QR_ANSI || qr_mode == QR_ANSI_INVERSE || qr_mode == QR_ANSI_GREY) {
-    const char * const inverse = use_inverted_colors ? ANSI_INVERSEOFF : ANSI_INVERSE;
-    const char * const inverse_off = use_inverted_colors ? ANSI_INVERSE : ANSI_INVERSEOFF;
+    const char * const inverse = use_inverse_colors ? ANSI_INVERSEOFF : ANSI_INVERSE;
+    const char * const inverse_off = use_inverse_colors ? ANSI_INVERSE : ANSI_INVERSEOFF;
     fputs(ANSI_RESET, stdout);
     for (int i = 0; i < 2; ++i) {
       fputs(color_setup, stdout);
