@@ -45,7 +45,7 @@
 #define BYTES_PER_SCRATCHCODE     4           // 32bit of randomness is enough
 #define BITS_PER_BASE32_CHAR      5           // Base32 expands space by 8/5
 
-static enum { QR_UNSET=0, QR_NONE, QR_ANSI, QR_UTF8 } qr_mode = QR_UNSET;
+static enum { QR_UNSET=0, QR_NONE, QR_ANSI, QR_ANSI_INVERSE, QR_ANSI_GREY, QR_UTF8, QR_UTF8_INVERSE, QR_UTF8_GREY } qr_mode = QR_UNSET;
 
 static int generateCode(const char *key, unsigned long tm) {
   uint8_t challenge[8];
@@ -184,9 +184,9 @@ static const char *getURL(const char *secret, const char *label,
 }
 
 #define ANSI_RESET        "\x1B[0m"
-#define ANSI_BLACKONGREY  "\x1B[30;47;27m"
-#define ANSI_WHITE        "\x1B[27m"
-#define ANSI_BLACK        "\x1B[7m"
+#define ANSI_BLACKONGREY  "\x1B[30;47m"
+#define ANSI_INVERSEOFF   "\x1B[27m"
+#define ANSI_INVERSE      "\x1B[7m"
 #define UTF8_BOTH         "\xE2\x96\x88"
 #define UTF8_TOPHALF      "\xE2\x96\x80"
 #define UTF8_BOTTOMHALF   "\xE2\x96\x84"
@@ -225,84 +225,92 @@ static int displayQRCode(const char* url) {
   }
   QRcode *qrcode = QRcode_encodeString8bit(url, 0, 1);
   const char *ptr = (char *)qrcode->data;
-  // Output QRCode using ANSI colors. Instead of black on white, we
-  // output black on grey, as that works independently of whether the
-  // user runs their terminal in a black on white or white on black color
-  // scheme.
-  // But this requires that we print a border around the entire QR Code.
-  // Otherwise readers won't be able to recognize it.
-  if (qr_mode != QR_UTF8) {
+  // Output QRCode using ANSI inverting codes. There's also an option to
+  // switch to black on grey rather than whatever the current colors are,
+  // as well as inverting the current colors. To make sure readers can
+  // recognize the code, print a 4-width border around it.
+  const int use_inverse_colors = qr_mode == QR_ANSI_INVERSE || qr_mode == QR_UTF8_INVERSE;
+  const int use_black_on_grey = qr_mode == QR_ANSI_GREY || qr_mode == QR_UTF8_GREY;
+  const char * const color_setup = use_black_on_grey ? ANSI_BLACKONGREY : (use_inverse_colors ? ANSI_INVERSE : "");
+  if (qr_mode == QR_ANSI || qr_mode == QR_ANSI_INVERSE || qr_mode == QR_ANSI_GREY) {
+    const char * const inverse = use_inverse_colors ? ANSI_INVERSEOFF : ANSI_INVERSE;
+    const char * const inverse_off = use_inverse_colors ? ANSI_INVERSE : ANSI_INVERSEOFF;
+    fputs(ANSI_RESET, stdout);
     for (int i = 0; i < 2; ++i) {
-      printf(ANSI_BLACKONGREY);
-      for (int x = 0; x < qrcode->width + 4; ++x) printf("  ");
-      puts(ANSI_RESET);
+      fputs(color_setup, stdout);
+      for (int x = 0; x < qrcode->width + 4; ++x) {
+        fputs("  ", stdout);
+      }
+      fputs(ANSI_RESET"\n", stdout);
     }
     for (int y = 0; y < qrcode->width; ++y) {
-      printf(ANSI_BLACKONGREY"    ");
-      int isBlack = 0;
+      fputs(color_setup, stdout);
+      fputs("    ", stdout);
+      int isInverted = 0;
       for (int x = 0; x < qrcode->width; ++x) {
         if (*ptr++ & 1) {
-          if (!isBlack) {
-            printf(ANSI_BLACK);
+          if (!isInverted) {
+            fputs(inverse, stdout);
+            isInverted = 1;
           }
-          isBlack = 1;
         } else {
-          if (isBlack) {
-            printf(ANSI_WHITE);
+          if (isInverted) {
+            fputs(inverse_off, stdout);
+            isInverted = 0;
           }
-          isBlack = 0;
         }
-        printf("  ");
+        fputs("  ", stdout);
       }
-      if (isBlack) {
-        printf(ANSI_WHITE);
+      if (isInverted) {
+        fputs(inverse_off, stdout);
       }
-      puts("    "ANSI_RESET);
+      fputs("    "ANSI_RESET"\n", stdout);
     }
     for (int i = 0; i < 2; ++i) {
-      printf(ANSI_BLACKONGREY);
-      for (int x = 0; x < qrcode->width + 4; ++x) printf("  ");
-      puts(ANSI_RESET);
+      fputs(color_setup, stdout);
+      for (int x = 0; x < qrcode->width + 4; ++x) {
+        fputs("  ", stdout);
+      }
+      fputs(ANSI_RESET"\n", stdout);
     }
   } else {
     // Drawing the QRCode with Unicode block elements is desirable as
-    // it makes the code much smaller, which is often easier to scan.
+    // it makes the display half the size, which is often easier to scan.
     // Unfortunately, many terminal emulators do not display these
     // Unicode characters properly.
-    printf(ANSI_BLACKONGREY);
-    for (int i = 0; i < qrcode->width + 4; ++i) {
-      printf(" ");
+    fputs(ANSI_RESET, stdout);
+    fputs(color_setup, stdout);
+    for (int x = 0; x < qrcode->width + 4; ++x) {
+      fputs(" ", stdout);
     }
-    puts(ANSI_RESET);
+    fputs(ANSI_RESET"\n", stdout);
     for (int y = 0; y < qrcode->width; y += 2) {
-      printf(ANSI_BLACKONGREY"  ");
+      fputs(color_setup, stdout);
+      fputs("  ", stdout);
       for (int x = 0; x < qrcode->width; ++x) {
         const int top = qrcode->data[y*qrcode->width + x] & 1;
-        int bottom = 0;
-        if (y+1 < qrcode->width) {
-          bottom = qrcode->data[(y+1)*qrcode->width + x] & 1;
-        }
+        const int bottom = y + 1 < qrcode->width ? qrcode->data[(y + 1) * qrcode->width + x] & 1 : 0;
         if (top) {
           if (bottom) {
-            printf(UTF8_BOTH);
+            fputs(UTF8_BOTH, stdout);
           } else {
-            printf(UTF8_TOPHALF);
+            fputs(UTF8_TOPHALF, stdout);
           }
         } else {
           if (bottom) {
-            printf(UTF8_BOTTOMHALF);
+            fputs(UTF8_BOTTOMHALF, stdout);
           } else {
-            printf(" ");
+            fputs(" ", stdout);
           }
         }
       }
-      puts("  "ANSI_RESET);
+      fputs("  "ANSI_RESET"\n", stdout);
     }
-    printf(ANSI_BLACKONGREY);
-    for (int i = 0; i < qrcode->width + 4; ++i) {
-      printf(" ");
+    fputs(color_setup, stdout);
+    for (int x = 0; x < qrcode->width + 4; ++x) {
+      fputs(" ", stdout);
     }
-    puts(ANSI_RESET);
+    fputs(ANSI_RESET"\n", stdout);
   }
   QRcode_free(qrcode);
   dlclose(qrencode);
@@ -419,7 +427,7 @@ static void usage(void) {
  " -l, --label=<label>            Override the default label in \"otpauth://\" URL\n"
  " -i, --issuer=<issuer>          Override the default issuer in \"otpauth://\" URL\n"
  " -q, --quiet                    Quiet mode\n"
- " -Q, --qr-mode={NONE,ANSI,UTF8} QRCode output mode\n"
+ " -Q, --qr-mode={NONE,ANSI,ANSI_INVERSE,ANSI_GREY,UTF8,UTF8_INVERSE,UTF8_GREY} QRCode output mode\n"
  " -r, --rate-limit=N             Limit logins to N per every M seconds\n"
  " -R, --rate-time=M              Limit logins to N per every M seconds\n"
  " -u, --no-rate-limit            Disable rate-limiting\n"
@@ -589,9 +597,17 @@ int main(int argc, char *argv[]) {
       }
       if (!strcasecmp(optarg, "none")) {
         qr_mode = QR_NONE;
-      } else if (!strcasecmp(optarg, "ansi")) {
+      } else if (!strcasecmp(optarg, "ANSI_INVERSE") || !strcasecmp(optarg, "ANSI-INVERSE")) {
+        qr_mode = QR_ANSI_INVERSE;
+      } else if (!strcasecmp(optarg, "ANSI_GREY") || !strcasecmp(optarg, "ANSI-GREY")) {
+        qr_mode = QR_ANSI_GREY;
+      } else if (!strcasecmp(optarg, "ANSI")) {
         qr_mode = QR_ANSI;
-      } else if (!strcasecmp(optarg, "utf8")) {
+      } else if (!strcasecmp(optarg, "UTF8_INVERSE") || !strcasecmp(optarg, "UTF8-INVERSE")) {
+        qr_mode = QR_UTF8_INVERSE;
+      } else if (!strcasecmp(optarg, "UTF8_GREY") || !strcasecmp(optarg, "UTF8-GREY")) {
+        qr_mode = QR_UTF8_GREY;
+      } else if (!strcasecmp(optarg, "UTF8")) {
         qr_mode = QR_UTF8;
       } else {
         fprintf(stderr, "Invalid qr-mode \"%s\"\n", optarg);
@@ -710,6 +726,9 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "Error\n");
       _exit(1);
     }
+  }
+  if (qr_mode == QR_UNSET) {
+    qr_mode = QR_ANSI; // most universal option
   }
   idx = -1;
   if (optind != argc) {
