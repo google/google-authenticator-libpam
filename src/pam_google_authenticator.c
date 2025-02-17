@@ -424,7 +424,7 @@ static int drop_privileges(pam_handle_t *pamh, const char *username, int uid,
 
 // open secret file, return fd on success, or <0 on error.
 static int open_secret_file(pam_handle_t *pamh, const char *secret_filename,
-                            struct Params *params, const char *username,
+                            Params *params, const char *username,
                             int uid, struct stat *orig_stat) {
   // Try to open "~/.google_authenticator"
   const int fd = open(secret_filename, O_RDONLY);
