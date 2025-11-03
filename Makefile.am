@@ -12,7 +12,7 @@ pam_LTLIBRARIES   = pam_google_authenticator.la
 dist_doc_DATA  = FILEFORMAT README.md
 dist_html_DATA = totp.html
 
-MODULES_LDFLAGS = -avoid-version -module -shared -export-dynamic
+MODULES_LDFLAGS = -avoid-version -module -shared -export-dynamic -lselinux
 
 CORE_SRC  = src/util.h   src/util.c
 CORE_SRC += src/base32.h src/base32.c
@@ -59,7 +59,7 @@ examples_demo_SOURCES = \
 	src/pam_google_authenticator.c \
 	$(CORE_SRC) \
 	examples/demo.c
-examples_demo_LDADD  = -lpam
+examples_demo_LDADD  = -lpam -lselinux
 examples_demo_CFLAGS = $(AM_CFLAGS) -DDEMO=1
 
 
