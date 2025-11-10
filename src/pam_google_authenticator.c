@@ -30,6 +30,15 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifdef HAVE_SELINUX
+#ifdef HAVE_SELINUX_SELINUX_H
+#include <selinux/selinux.h>
+#endif
+#ifdef HAVE_SELINUX_CONTEXT_H
+#include <selinux/context.h>
+#endif
+#endif
+
 #ifdef HAVE_SYS_FSUID_H
 // We much rather prefer to use setfsuid(), but this function is unfortunately
 // not available on all systems.
@@ -55,11 +64,12 @@
 
 // Module name shortened to work with rsyslog.
 // See https://github.com/google/google-authenticator-libpam/issues/172
-#define MODULE_NAME   "pam_google_auth"
+#define MODULE_NAME          "pam_google_auth"
 
-#define SECRET        "~/.google_authenticator"
-#define CODE_PROMPT   "Verification code: "
-#define PWCODE_PROMPT "Password & verification code: "
+#define SECRET               "~/.google_authenticator"
+#define SECRET_SELINUX_TYPE  "auth_home_t"
+#define CODE_PROMPT          "Verification code: "
+#define PWCODE_PROMPT        "Password & verification code: "
 
 typedef struct Params {
   const char *secret_filename_spec;
@@ -574,6 +584,56 @@ full_write(int fd, const char* buf, size_t len) {
   }
 }
 
+static int set_selinux_context(int fd) {
+  int err = 0;
+#ifdef HAVE_SELINUX
+  char *old_context = NULL;
+  const char *new_context = NULL;
+
+  // skip if SELinux is not enabled
+  if (!is_selinux_enabled()) {
+    return 1;
+  }
+
+  // Get the current context
+  if (fgetfilecon(fd, &old_context) < 0) {
+    return errno;
+  }
+
+  // Create a new context with the type changed
+  context_t ctx = context_new(old_context);
+  if (!ctx) {
+    err = errno;
+    goto cleanup;
+  }
+  if (context_type_set(ctx, SECRET_SELINUX_TYPE) < 0) {
+    err = errno;
+    goto cleanup;
+  }
+
+  // Get the SC as string
+  new_context = context_str(ctx);
+  if (!new_context) {
+    err = errno;
+    goto cleanup;
+  }
+
+  if (fsetfilecon(fd, new_context) < 0) {
+    err = errno;
+    goto cleanup;
+  }
+
+cleanup:
+  if (ctx) {
+    context_free(ctx);
+  }
+  if (old_context) {
+    freecon(old_context);
+  }
+#endif
+  return err;
+}
+
 // Safely overwrite the old secret file.
 // Return 0 on success, errno otherwise.
 static int write_file_contents(pam_handle_t *pamh,
@@ -644,6 +704,10 @@ static int write_file_contents(pam_handle_t *pamh,
     log_message(LOG_ERR, pamh, "write(): %s", strerror(err));
     goto cleanup;
   }
+  if (set_selinux_context(fd)) {
+    log_message(LOG_DEBUG, pamh, "setting SELinux type \"%s\" on file \"%s\" failed. Okay if SELinux is disabled", SECRET_SELINUX_TYPE, secret_filename);
+  }
+
   if (fsync(fd)) {
     err = errno;
     log_message(LOG_ERR, pamh, "fsync(): %s", strerror(err));

@@ -12,7 +12,7 @@ pam_LTLIBRARIES   = pam_google_authenticator.la
 dist_doc_DATA  = FILEFORMAT README.md
 dist_html_DATA = totp.html
 
-MODULES_LDFLAGS = -avoid-version -module -shared -export-dynamic
+MODULES_LDFLAGS = -avoid-version -module -shared -export-dynamic $(SELINUX_LIBS)
 
 CORE_SRC  = src/util.h   src/util.c
 CORE_SRC += src/base32.h src/base32.c
@@ -31,7 +31,7 @@ pam_google_authenticator_la_SOURCES = \
 	src/pam_google_authenticator.c \
 	$(CORE_SRC)
 pam_google_authenticator_la_LIBADD  = -lpam
-pam_google_authenticator_la_CFLAGS  = $(AM_CFLAGS)
+pam_google_authenticator_la_CFLAGS  = $(AM_CFLAGS) $(SELINUX_CFLAGS)
 pam_google_authenticator_la_LDFLAGS = $(AM_LDFLAGS) $(MODULES_LDFLAGS) -export-symbols-regex "pam_sm_(setcred|open_session|authenticate)"
 
 
@@ -43,7 +43,7 @@ EXTRA_DIST        = tests/base32_test.sh
 libpam_google_authenticator_testing_la_SOURCES = \
 	src/pam_google_authenticator.c \
 	$(CORE_SRC)
-libpam_google_authenticator_testing_la_CFLAGS  = $(AM_CFLAGS) -DTESTING=1
+libpam_google_authenticator_testing_la_CFLAGS  = $(AM_CFLAGS) -DTESTING=1 $(SELINUX_CFLAGS)
 libpam_google_authenticator_testing_la_LDFLAGS = $(AM_LDFLAGS) $(MODULES_LDFLAGS) -rpath $(abs_top_builddir) -lpam
 
 tests_pam_google_authenticator_unittest_SOURCES = \
@@ -59,7 +59,7 @@ examples_demo_SOURCES = \
 	src/pam_google_authenticator.c \
 	$(CORE_SRC) \
 	examples/demo.c
-examples_demo_LDADD  = -lpam
+examples_demo_LDADD  = -lpam $(SELINUX_LIBS)
 examples_demo_CFLAGS = $(AM_CFLAGS) -DDEMO=1
 
 
