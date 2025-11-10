@@ -72,6 +72,30 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 
 AC_LANG_POP(C)
 
+# SELinux support (optional)
+AC_ARG_ENABLE([selinux],
+    AS_HELP_STRING([--disable-selinux], [Disable SELinux support]),
+    [enable_selinux=$enableval],
+    [enable_selinux=auto])
+
+SELINUX_LIBS=""
+have_selinux=no
+
+if test "x$enable_selinux" != "xno"; then
+    PKG_CHECK_MODULES([SELINUX], [libselinux], [
+        have_selinux=yes
+        SELINUX_LIBS="-lselinux"
+        AC_DEFINE([HAVE_SELINUX], [1], [Define if SELinux is available])
+    ], [
+        if test "x$enable_selinux" = "xyes"; then
+            AC_MSG_ERROR([SELinux support requested but libselinux not found])
+        fi
+        have_selinux=no
+    ])
+fi
+
+AC_SUBST([SELINUX_LIBS])
+AM_CONDITIONAL([HAVE_SELINUX], [test "x$have_selinux" = "xyes"])
 
 
 AC_SEARCH_LIBS([dlopen], [dl])

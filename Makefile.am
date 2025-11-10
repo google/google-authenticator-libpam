@@ -12,7 +12,7 @@ pam_LTLIBRARIES   = pam_google_authenticator.la
 dist_doc_DATA  = FILEFORMAT README.md
 dist_html_DATA = totp.html
 
-MODULES_LDFLAGS = -avoid-version -module -shared -export-dynamic -lselinux
+MODULES_LDFLAGS = -avoid-version -module -shared -export-dynamic $(SELINUX_LIBS)
 
 CORE_SRC  = src/util.h   src/util.c
 CORE_SRC += src/base32.h src/base32.c
