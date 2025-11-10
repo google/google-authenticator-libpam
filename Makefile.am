@@ -43,7 +43,7 @@ EXTRA_DIST        = tests/base32_test.sh
 libpam_google_authenticator_testing_la_SOURCES = \
 	src/pam_google_authenticator.c \
 	$(CORE_SRC)
-libpam_google_authenticator_testing_la_CFLAGS  = $(AM_CFLAGS) -DTESTING=1
+libpam_google_authenticator_testing_la_CFLAGS  = $(AM_CFLAGS) -DTESTING=1 $(SELINUX_CFLAGS)
 libpam_google_authenticator_testing_la_LDFLAGS = $(AM_LDFLAGS) $(MODULES_LDFLAGS) -rpath $(abs_top_builddir) -lpam
 
 tests_pam_google_authenticator_unittest_SOURCES = \
@@ -59,7 +59,7 @@ examples_demo_SOURCES = \
 	src/pam_google_authenticator.c \
 	$(CORE_SRC) \
 	examples/demo.c
-examples_demo_LDADD  = -lpam -lselinux
+examples_demo_LDADD  = -lpam $(SELINUX_LIBS)
 examples_demo_CFLAGS = $(AM_CFLAGS) -DDEMO=1
 
 
