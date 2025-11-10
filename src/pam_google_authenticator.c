@@ -588,17 +588,16 @@ static int set_selinux_context(int fd) {
   int err = 0;
 #ifdef HAVE_SELINUX
   char *old_context = NULL;
+  const char *new_context = NULL;
 
   // skip if SELinux is not enabled
   if (!is_selinux_enabled()) {
-    err = 1;
-    goto cleanup;
+    return 1;
   }
 
   // Get the current context
   if (fgetfilecon(fd, &old_context) < 0) {
-    err = errno;
-    goto cleanup;
+    return errno;
   }
 
   // Create a new context with the type changed
@@ -613,7 +612,7 @@ static int set_selinux_context(int fd) {
   }
 
   // Get the SC as string
-  const char *new_context = context_str(ctx);
+  new_context = context_str(ctx);
   if (!new_context) {
     err = errno;
     goto cleanup;
