@@ -17,7 +17,11 @@ LT_INIT
 AC_PROG_CC
 AC_PROG_CC_STDC
 
-AC_CHECK_HEADERS([sys/fsuid.h])
+AC_CHECK_HEADERS([
+        sys/fsuid.h
+        selinux/selinux.h
+        selinux/context.h
+])
 AC_CHECK_FUNCS([ \
 	explicit_bzero \
 	setfsuid \
@@ -84,7 +88,6 @@ have_selinux=no
 if test "x$enable_selinux" != "xno"; then
     PKG_CHECK_MODULES([SELINUX], [libselinux], [
         have_selinux=yes
-        SELINUX_LIBS="-lselinux"
         AC_DEFINE([HAVE_SELINUX], [1], [Define if SELinux is available])
     ], [
         if test "x$enable_selinux" = "xyes"; then
@@ -94,6 +97,7 @@ if test "x$enable_selinux" != "xno"; then
     ])
 fi
 
+AC_SUBST([SELINUX_CFLAGS])
 AC_SUBST([SELINUX_LIBS])
 AM_CONDITIONAL([HAVE_SELINUX], [test "x$have_selinux" = "xyes"])
 
@@ -110,4 +114,6 @@ echo "
   Debug Build....: $debug
   C Compiler.....: $CC $CFLAGS $CPPFLAGS
   Linker.........: $LD $LDFLAGS $LIBS
+  SELinux CFlags.: $SELINUX_CFLAGS
+  SELinux libs...: $SELINUX_LIBS
 "

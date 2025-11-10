@@ -30,8 +30,14 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifdef HAVE_SELINUX
+#ifdef HAVE_SELINUX_SELINUX_H
 #include <selinux/selinux.h>
+#endif
+#ifdef HAVE_SELINUX_CONTEXT_H
 #include <selinux/context.h>
+#endif
+#endif
 
 #ifdef HAVE_SYS_FSUID_H
 // We much rather prefer to use setfsuid(), but this function is unfortunately
@@ -579,8 +585,9 @@ full_write(int fd, const char* buf, size_t len) {
 }
 
 static int set_selinux_context(int fd) {
-  char *old_context = NULL;
   int err = 0;
+#ifdef HAVE_SELINUX
+  char *old_context = NULL;
 
   // skip if SELinux is not enabled
   if (!is_selinux_enabled()) {
@@ -624,7 +631,7 @@ cleanup:
   if (old_context) {
     freecon(old_context);
   }
-
+#endif
   return err;
 }
 
