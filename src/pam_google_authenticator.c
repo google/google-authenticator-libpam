@@ -698,10 +698,9 @@ static int write_file_contents(pam_handle_t *pamh,
     log_message(LOG_ERR, pamh, "write(): %s", strerror(err));
     goto cleanup;
   }
-  // adjust SELinux context. No error handling here as this can fail if SELinux
-  // is not enable, which is fine in this case. If it fails when SELinux is
-  // available this will result in AVCs that can be debugged
-  set_selinux_context(fd);
+  if (set_selinux_context(fd)) {
+    log_message(LOG_DEBUG, pamh, "setting SELinux type \"%s\" on file \"%s\" failed. Okay if SELinux is disabled", SECRET_SELINUX_TYPE, secret_filename);
+  }
 
   if (fsync(fd)) {
     err = errno;
