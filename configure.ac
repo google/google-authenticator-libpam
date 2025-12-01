@@ -17,10 +17,10 @@ LT_INIT
 AC_PROG_CC
 AC_PROG_CC_STDC
 
-AC_CHECK_HEADERS([
-        sys/fsuid.h
-        selinux/selinux.h
-        selinux/context.h
+AC_CHECK_HEADERS([ \
+        sys/fsuid.h \
+        selinux/selinux.h \
+        selinux/context.h \
 ])
 AC_CHECK_FUNCS([ \
 	explicit_bzero \
