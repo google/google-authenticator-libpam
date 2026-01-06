@@ -329,12 +329,10 @@ static void displayEnrollInfo(const char *secret, const char *label,
   // it at build-time we look for it at run-time. If it cannot be found, the
   // user can still type the code in manually or copy the URL into
   // their browser.
-  if (isatty(STDOUT_FILENO)) {
-    if (!displayQRCode(url)) {
-      printf(
-          "Failed to use libqrencode to show QR code visually for scanning.\n"
-          "Consider typing the OTP secret into your app manually.\n");
-    }
+  if (!displayQRCode(url)) {
+    printf(
+        "Failed to use libqrencode to show QR code visually for scanning.\n"
+        "Consider typing the OTP secret into your app manually.\n");
   }
 
   free((char *)url);
