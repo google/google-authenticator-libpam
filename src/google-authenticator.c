@@ -946,8 +946,8 @@ int main(int argc, char *argv[]) {
 
   fd = open(tmp_fn, O_WRONLY|O_EXCL|O_CREAT|O_NOFOLLOW|O_TRUNC, 0400);
   if (fd < 0) {
-    fprintf(stderr, "Failed to create \"%s\" (%s)",
-            secret_fn, strerror(errno));
+    fprintf(stderr, "Failed to create \"%s\" temp file \"%s\" (%s)\n",
+            secret_fn, tmp_fn, strerror(errno));
     goto errout;
   }
   if (write(fd, secret, strlen(secret)) != (ssize_t)strlen(secret) ||
