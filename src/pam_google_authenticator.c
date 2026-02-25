@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <limits.h>
 #include <pwd.h>
 #include <stdarg.h>
@@ -88,6 +89,12 @@ typedef struct Params {
   time_t     grace_period;
   int        allow_readonly;
 } Params;
+
+// structure to keep track of supplementary groups of the calling process
+typedef struct GroupList {
+  int        n_groups;
+  gid_t      *gids;
+} GroupList;
 
 static char oom;
 
@@ -371,7 +378,7 @@ static int setgroup(int gid) {
 
 // Drop privileges and return 0 on success.
 static int drop_privileges(pam_handle_t *pamh, const char *username, int uid,
-                           int *old_uid, int *old_gid) {
+                           int *old_uid, int *old_gid, GroupList *old_groups) {
   // Try to become the new user. This might be necessary for NFS mounted home
   // directories.
 
@@ -398,6 +405,38 @@ static int drop_privileges(pam_handle_t *pamh, const char *username, int uid,
   gid_t gid = pw->pw_gid;
   free(buf);
 
+  // to access the secret file, we may have to be member of the same groups as the 
+  // user that tries to authenticate.
+  // get number of groups for the user
+  GroupList user_groups;
+  user_groups.n_groups = 0;
+  int err = getgrouplist(username, gid, NULL, &user_groups.n_groups);
+
+  // now get a full list of all groups
+  user_groups.gids = malloc(sizeof(gid_t) * user_groups.n_groups);
+  err = getgrouplist(username, gid, user_groups.gids, &user_groups.n_groups);
+  if (err == -1) {
+    log_message(LOG_ERR, pamh, "Failed to get group memberships of user \"%s\"", username);
+  }
+
+  // store the old list of groups of this process
+  old_groups->n_groups = getgroups(0, NULL);
+  old_groups->gids = malloc(sizeof(gid_t)*old_groups->n_groups);
+  err = getgroups(old_groups->n_groups, old_groups->gids);
+  if (err == -1) {
+    log_message(LOG_ERR, pamh, "Failed to get supplementary groups for the process");
+  }
+
+  // change the list of groups to the groups the user is member of
+  err = setgroups(user_groups.n_groups, user_groups.gids);
+  if (err == -1) {
+    log_message(LOG_ERR, pamh, "Failed to set %d supplementary group IDs for the process", user_groups.n_groups);
+  }
+  // cleanup user group list
+  free(user_groups.gids);
+  user_groups.n_groups = -1;
+
+  // set primary uid und gid for the process
   int gid_o = setgroup(gid);
   int uid_o = setuser(uid);
   if (uid_o < 0) {
@@ -1907,6 +1946,7 @@ static int google_authenticator(pam_handle_t *pamh,
   int        rc = PAM_AUTH_ERR;
   uid_t      uid = -1;
   int        old_uid = -1, old_gid = -1, fd = -1;
+  GroupList  old_groups;
   char       *buf = NULL;
   struct stat orig_stat = { 0 };
   uint8_t    *secret = NULL;
@@ -1932,6 +1972,8 @@ static int google_authenticator(pam_handle_t *pamh,
   int stopped_by_rate_limit = 0;
 
   // Drop privileges.
+  old_groups.n_groups = 0;
+  old_groups.gids = NULL;
   {
     const char* drop_username = username;
 
@@ -1944,7 +1986,7 @@ static int google_authenticator(pam_handle_t *pamh,
       }
     }
 
-    if (drop_privileges(pamh, drop_username, uid, &old_uid, &old_gid)) {
+    if (drop_privileges(pamh, drop_username, uid, &old_uid, &old_gid, &old_groups)) {
       // Don't allow to continue without dropping privs.
       goto out;
     }
@@ -2232,6 +2274,13 @@ out:
                   "but can't switch back", old_uid, uid);
     }
   }
+  // restore old supplementary groups for process
+  if (old_groups.n_groups > 0) {
+    if (setgroups(old_groups.n_groups, old_groups.gids) != 0) {
+      log_message(LOG_ERR, pamh, "Failed to restore %d old supplementary groups.", old_groups.n_groups);
+    } 
+    free(old_groups.gids);
+  } 
   free(secret_filename);
 
   // Clean up
